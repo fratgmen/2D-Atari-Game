@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <meta name="theme-color" content="#1b1f4b">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>Blok Yağmuru</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <main class="stage" id="stage">
+    <canvas id="game" aria-label="Oyun alanı"></canvas>
+
+    <div class="hud" id="hud" hidden>
+      <span class="hud-score" id="score" aria-live="off">0</span>
+      <span class="hud-level">Seviye <b id="level">1</b></span>
+      <span class="hud-lives" id="lives" role="img" aria-label="3 can"></span>
+      <button class="hud-pause" id="pause" aria-label="Duraklat">II</button>
+    </div>
+
+    <section class="screen" id="screen-start">
+      <h1 class="logo">Blok<br>Yağmuru</h1>
+      <div class="stripes" aria-hidden="true"></div>
+      <form id="start-form" class="start-form" novalidate>
+        <fieldset class="picker">
+          <legend>Karakterini seç</legend>
+          <div class="picker-grid" id="picker"></div>
+        </fieldset>
+        <div class="preview" id="preview" aria-live="polite">
+          <p class="preview-society" id="pv-society"></p>
+          <p class="preview-row"><span class="preview-key">Topla</span><span class="preview-items" id="pv-collect"></span></p>
+          <p class="preview-row"><span class="preview-key bad">Kaç</span><span class="preview-items" id="pv-avoid"></span></p>
+        </div>
+        <div class="nick-form">
+          <label for="nickname">Takma adın</label>
+          <input id="nickname" name="nickname" maxlength="16" autocomplete="nickname" autocapitalize="off" spellcheck="false" enterkeyhint="go" required>
+          <p class="error" id="nick-error" role="alert"></p>
+        </div>
+        <button type="submit" class="btn">Oyna</button>
+      </form>
+      <h2 class="board-title">En iyiler</h2>
+      <ol class="board" id="board-start"></ol>
+      <p class="controls-hint">Parmağınla sürükle ya da ← → tuşlarını kullan. Üç canın var.</p>
+    </section>
+
+    <section class="screen" id="screen-pause" hidden>
+      <h2 class="screen-title">Duraklatıldı</h2>
+      <button class="btn" id="resume">Devam et</button>
+    </section>
+
+    <section class="screen" id="screen-over" hidden>
+      <img class="over-bird" id="over-bird" alt="">
+      <h2 class="screen-title">Oyun bitti</h2>
+      <p class="final"><span id="final-score">0</span> puan</p>
+      <p class="rank" id="rank" role="status"></p>
+      <ol class="board" id="board-over"></ol>
+      <div class="actions">
+        <button class="btn" id="again">Tekrar oyna</button>
+        <button class="btn btn-ghost" id="change-nick">Adı değiştir</button>
+      </div>
+    </section>
+  </main>
+  <script type="module" src="/game.js"></script>
+</body>
+</html>

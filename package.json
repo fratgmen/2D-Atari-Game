@@ -1,0 +1,23 @@
+{
+  "name": "blok-yagmuru",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Stant için tarayıcıda oynanan 2D blok yakalama oyunu + kalıcı skor tablosu",
+  "type": "module",
+  "main": "server.js",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "dependencies": {
+    "@fastify/helmet": "^13.1.1",
+    "@fastify/rate-limit": "^11.2.0",
+    "@fastify/static": "^10.1.4",
+    "better-sqlite3": "^13.0.3",
+    "fastify": "^5.12.5",
+    "qrcode": "^1.5.4"
+  }
+}

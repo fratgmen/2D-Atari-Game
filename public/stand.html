@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Blok Yağmuru · Stant</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body class="stand-body">
+  <main class="stand">
+    <section class="stand-join">
+      <h1 class="logo">Blok<br>Yağmuru</h1>
+      <div class="stripes" aria-hidden="true"></div>
+      <figure class="qr">
+        <img src="/qr.svg" alt="Oyunu açan QR kod">
+      </figure>
+      <p class="stand-cta">Kameranla tara, telefonunda hemen oyna.</p>
+      <p class="stand-url" id="url"></p>
+    </section>
+    <section class="stand-board">
+      <h2 class="board-title">Skor tablosu</h2>
+      <ol class="board board-big" id="board"></ol>
+    </section>
+  </main>
+  <script type="module" src="/stand.js"></script>
+</body>
+</html>
