@@ -103,7 +103,7 @@ blok-yagmuru/
 | `GET` | `/admin` | Moderasyon paneli: token girip listeden takma ad silme arayüzü |
 | `GET` | `/healthz` | Sağlık kontrolü |
 
-**Hata kodları:** `BAD_NICKNAME` (400), `NO_SESSION` (404), `SESSION_USED` (409), `IMPLAUSIBLE` (422). Hız sınırı aşılırsa 429 döner.
+**Hata kodları:** `BAD_NICKNAME` (400), `NO_SESSION` (404), `SESSION_USED` (409), `NICKNAME_TAKEN` (409), `IMPLAUSIBLE` (422). Hız sınırı aşılırsa 429 döner.
 
 **Hız sınırları:** Oturum açma dakikada 30, skor gönderme dakikada 20 istek (IP başına).
 
@@ -112,13 +112,13 @@ blok-yagmuru/
 ```sql
 sessions (id TEXT PK, created_at INTEGER, used INTEGER)
 scores   (id INTEGER PK, nickname TEXT, nickname_key TEXT, character TEXT,
-          score INTEGER, duration_ms INTEGER, created_at INTEGER, ip TEXT)
+          score INTEGER, duration_ms INTEGER, created_at INTEGER, ip TEXT, owner TEXT)
 ```
 
 - `nickname_key`: takma adın Türkçe kurallarla küçük harfe çevrilmiş hâli (`FIRAT` → `fırat`). Aynı kişinin skorlarını gruplamak için kullanılır.
 - Skor tablosu her `nickname_key` için yalnızca en iyi skoru gösterir. Eşitlikte o skora önce ulaşan üstte yer alır.
 - 6 saatten eski oturumlar yarım saatte bir temizlenir.
-- `character` ve `ip` sütunları, bu sütunlar olmadan oluşturulmuş eski veritabanlarına açılışta otomatik eklenir.
+- `character`, `ip` ve `owner` sütunları, bu sütunlar olmadan oluşturulmuş eski veritabanlarına açılışta otomatik eklenir.
 
 ## 9. Hile koruması
 
@@ -134,11 +134,15 @@ Bu önlemler kararlı bir saldırganı tamamen durdurmaz (gerçek oyunu taklit e
 
 **Aynı IP'den çok sayıda farklı ad:** `scores.ip` sütununda her gönderimin IP'si tutulur. `/admin` panelindeki "Son gönderimler" listesi, aynı IP'den 4 veya daha fazla farklı ad gönderildiğinde o satırları ⚠ ile işaretler. Bu kesin bir kanıt değildir (standın paylaşımlı Wi-Fi'ında birçok telefon aynı IP'den çıkabilir) — otomatik engelleme yapılmaz, sadece insan gözüyle kontrol için işaretlenir.
 
-## 10. Takma ad çakışması ve ödül teslimatı
+## 10. Takma ad sahipliği ve ödül teslimatı
 
-Takma adlar hesap değildir, kimseye ait değildir: iki farklı ziyaretçi aynı adı seçebilir, ikisi de aynı `nickname_key`'e düşer ve skor tablosunda tek satır görünür (en yüksek skor kazanır). Bu, kayıt/giriş gerektirmeyen tasarımın bilinçli bir sonucu.
+Bir takma adı ilk kullanan ziyaretçi o adın **sahibi** olur. Başka biri aynı adla skor göndermeye çalışırsa sunucu reddeder: `409 NICKNAME_TAKEN`, *"Bu isim kullanılıyor, lütfen farklı bir isim dene."* Başlangıç ekranında da "Oyna"ya basılır basılmaz bu kontrol yapılır, oyuncu maçı bitirdikten sonra değil, oynamaya başlamadan önce öğrenir.
 
-Bunun etkinlik sonu ödül teslimatında karışıklık yaratmaması için her skor gönderiminde bir **ödül kodu** üretilir (`scores.id`'nin base36 hâli, örn. `9IX`):
+Sahiplik, IP değil, `public/device.js`'in tarayıcıda ürettiği rastgele bir **cihaz kimliği** (`x-device-id` başlığı) üzerinden takip edilir — çünkü Türkiye'deki mobil operatörlerin çoğu CGNAT kullanır, aynı Wi-Fi de olduğu gibi: birden fazla ziyaretçinin telefonu aynı IP'yi paylaşabilir. IP ile kilitlemek birbirini hiç tanımayan iki kişiyi "aynı kişi" sayıp haksız yere engelleyebilirdi. Cihaz kimliği her tarayıcıya özeldir (localStorage'da saklanır, kişisel veri değildir). `scores.owner` sütununda tutulur; `scores.ip` ayrı bir sütun olarak, yalnızca yukarıdaki şüpheli-IP işaretlemesi için kalmaya devam eder.
+
+Sınırı bilinçli olarak dar tuttuk: bir cihaz istediği kadar farklı isimle oynayabilir (örn. "Adı değiştir" ile), sadece **başka birinin adını** alamaz. localStorage'ı temizleyen veya gizli sekmede oynayan biri kendi eski adını "unutur" ve o ad artık ona kilitli görünmez — bu durumda `/admin` panelinden eski kaydı silmek adı serbest bırakır.
+
+Ayrıca her skor gönderiminde bir **ödül kodu** üretilir (`scores.id`'nin base36 hâli, örn. `9IX`), etkinlik sonu ödül teslimatında ek bir doğrulama katmanı olarak:
 
 - Oyuncu skor gönderdiğinde, "Oyun bitti" ekranında bu kod gösterilir. Kod her zaman o an tabloda görünen rekor skora aittir — oyuncu daha düşük bir skorla tekrar oynarsa kod değişmez, yeni bir rekor kırarsa kod da güncellenir.
 - `/admin` panelindeki takma ad listesinde her ismin yanında aynı kod görünür.
