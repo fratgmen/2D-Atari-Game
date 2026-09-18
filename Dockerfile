@@ -6,6 +6,5 @@ COPY . .
 ENV NODE_ENV=production \
     DB_PATH=/data/scores.db \
     PORT=3000
-VOLUME ["/data"]
 EXPOSE 3000
 CMD ["node", "server.js"]
