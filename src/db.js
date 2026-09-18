@@ -48,6 +48,22 @@ export function createStore(file) {
       FROM scores GROUP BY nickname_key
       ORDER BY score DESC, created_at ASC
       LIMIT ?`),
+    // Bir takma adın rekor satırının id'si: ödül teslimatında oyuncunun ekranında
+    // gördüğü kodun hâlâ tabloyla eşleştiğini doğrulamak için (bkz. claimCode).
+    bestRowFor: db.prepare(
+      'SELECT id FROM scores WHERE nickname_key = ? ORDER BY score DESC, created_at ASC LIMIT 1'
+    ),
+    // Admin listesi: her takma ad için rekor satırın id'sini de döner (moderasyon
+    // panelinde kodu göstermek için), leaderboard ile birebir aynı sıralama/eşitlik kuralı.
+    adminBest: db.prepare(`
+      SELECT id, nickname, character, score, created_at FROM (
+        SELECT id, nickname, character, score, created_at,
+               ROW_NUMBER() OVER (PARTITION BY nickname_key ORDER BY score DESC, created_at ASC) AS rn
+        FROM scores
+      )
+      WHERE rn = 1
+      ORDER BY score DESC, created_at ASC
+      LIMIT ?`),
     nicknameExists: db.prepare('SELECT 1 FROM scores WHERE nickname_key = ? LIMIT 1'),
     // Ham gönderim listesi (IP dahil): moderasyon panelinde aynı IP'den farklı adları görmek için.
     recentScores: db.prepare(`
@@ -62,7 +78,10 @@ export function createStore(file) {
     const before = q.prevBest.get(key).best ?? -1;
     q.insert.run(nickname, key, character, score, durationMs, now, ip ?? null);
     const best = Math.max(before, score);
-    return { rank: q.rankOf.get(best).rank, best, isPersonalBest: score > before };
+    // Rekor bu gönderimden gelmemiş olabilir (daha düşük bir skorla tekrar oynanmış olabilir);
+    // ödül kodu her zaman tabloda görünen rekor satırına ait olmalı.
+    const claimId = q.bestRowFor.get(key).id;
+    return { rank: q.rankOf.get(best).rank, best, isPersonalBest: score > before, claimId };
   });
 
   return {
@@ -71,6 +90,10 @@ export function createStore(file) {
     submit,
     leaderboard: (limit) =>
       q.leaderboard.all(limit).map((r, i) => ({ rank: i + 1, nickname: r.nickname, character: r.character, score: r.score })),
+    adminNicknames: (limit) =>
+      q.adminBest.all(limit).map((r, i) => ({
+        rank: i + 1, nickname: r.nickname, character: r.character, score: r.score, claimId: r.id,
+      })),
     nicknameExists: (key) => !!q.nicknameExists.get(key),
     recentScores: (limit) => q.recentScores.all(limit),
     deleteNickname: (key) => q.deleteNickname.run(key).changes,

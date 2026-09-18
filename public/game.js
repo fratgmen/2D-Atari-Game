@@ -14,7 +14,7 @@ const ui = {
   start: $('screen-start'), pause: $('screen-pause'), over: $('screen-over'),
   form: $('start-form'), nick: $('nickname'), nickError: $('nick-error'), nickHint: $('nick-hint'),
   boardStart: $('board-start'), boardOver: $('board-over'),
-  finalScore: $('final-score'), rank: $('rank'),
+  finalScore: $('final-score'), rank: $('rank'), claim: $('claim'), claimCode: $('claim-code'),
   again: $('again'), changeNick: $('change-nick'), resume: $('resume'),
   picker: $('picker'), pvSociety: $('pv-society'), pvCollect: $('pv-collect'), pvAvoid: $('pv-avoid'),
   overBird: $('over-bird'),
@@ -432,6 +432,7 @@ async function endGame() {
   const token = runId;
   ui.finalScore.textContent = game.score.toLocaleString('tr-TR');
   ui.rank.textContent = 'Skor kaydediliyor…';
+  ui.claim.hidden = true;
   ui.boardOver.replaceChildren();
   ui.overBird.src = `/birds/${game.character.id}.webp`;
   show(ui.over);
@@ -452,6 +453,8 @@ async function endGame() {
     ui.rank.textContent = r.isPersonalBest
       ? `Yeni rekorun! Sıralamada ${r.rank}. sıradasın.`
       : `En iyi skorun ${r.best.toLocaleString('tr-TR')}, sıralamada ${r.rank}. sıradasın.`;
+    ui.claimCode.textContent = r.claimCode;
+    ui.claim.hidden = false;
     renderBoard(ui.boardOver, r.entries);
   } catch (err) {
     if (token !== runId) return;

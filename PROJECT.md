@@ -91,10 +91,12 @@ blok-yagmuru/
 | Metot | Yol | Açıklama |
 |---|---|---|
 | `POST` | `/api/sessions` | Oyun başında tek kullanımlık oturum açar → `{ sessionId }` |
-| `POST` | `/api/scores` | `{ sessionId, nickname, character, score }` gönderir → `{ rank, best, isPersonalBest, entries }` |
+| `POST` | `/api/scores` | `{ sessionId, nickname, character, score }` gönderir → `{ rank, best, isPersonalBest, claimCode, entries }` |
 | `GET` | `/api/leaderboard?limit=10` | Her takma adın en iyi skoru, büyükten küçüğe (1–50) |
 | `GET` | `/api/config` | QR'daki oyun adresi → `{ playUrl }` |
-| `GET` | `/api/admin/nicknames` | Tüm takma adları ve en iyi skorlarını döner (en fazla 500); `x-admin-token` başlığı gerekir |
+| `GET` | `/api/nicknames/:nickname/taken` | Bu ad daha önce kullanıldı mı → `{ taken }` (herkese açık, isim seçerken yumuşak uyarı için) |
+| `GET` | `/api/admin/nicknames` | Tüm takma adları, en iyi skorlarını ve ödül kodlarını döner (en fazla 500); `x-admin-token` başlığı gerekir |
+| `GET` | `/api/admin/scores` | Ham gönderim geçmişi (IP dahil, en fazla 300); `x-admin-token` başlığı gerekir |
 | `DELETE` | `/api/admin/nicknames/:nickname` | Takma adın tüm skorlarını siler; `x-admin-token` başlığı gerekir |
 | `GET` | `/qr.svg` | Oyun adresinin QR kodu |
 | `GET` | `/stand` | Stant ekranı |
@@ -110,13 +112,13 @@ blok-yagmuru/
 ```sql
 sessions (id TEXT PK, created_at INTEGER, used INTEGER)
 scores   (id INTEGER PK, nickname TEXT, nickname_key TEXT, character TEXT,
-          score INTEGER, duration_ms INTEGER, created_at INTEGER)
+          score INTEGER, duration_ms INTEGER, created_at INTEGER, ip TEXT)
 ```
 
 - `nickname_key`: takma adın Türkçe kurallarla küçük harfe çevrilmiş hâli (`FIRAT` → `fırat`). Aynı kişinin skorlarını gruplamak için kullanılır.
 - Skor tablosu her `nickname_key` için yalnızca en iyi skoru gösterir. Eşitlikte o skora önce ulaşan üstte yer alır.
 - 6 saatten eski oturumlar yarım saatte bir temizlenir.
-- `character` sütunu, bu sütun olmadan oluşturulmuş eski veritabanlarına açılışta otomatik eklenir.
+- `character` ve `ip` sütunları, bu sütunlar olmadan oluşturulmuş eski veritabanlarına açılışta otomatik eklenir.
 
 ## 9. Hile koruması
 
@@ -130,7 +132,21 @@ Stantta birinin tarayıcı geliştirici araçlarından sahte skor göndermesi ol
 
 Bu önlemler kararlı bir saldırganı tamamen durdurmaz (gerçek oyunu taklit eden bir script yazılabilir), ancak stant ortamındaki kötüye kullanımın büyük kısmını engeller. Geri kalanı için moderasyon ucu vardır.
 
-## 10. Yapılandırma
+**Aynı IP'den çok sayıda farklı ad:** `scores.ip` sütununda her gönderimin IP'si tutulur. `/admin` panelindeki "Son gönderimler" listesi, aynı IP'den 4 veya daha fazla farklı ad gönderildiğinde o satırları ⚠ ile işaretler. Bu kesin bir kanıt değildir (standın paylaşımlı Wi-Fi'ında birçok telefon aynı IP'den çıkabilir) — otomatik engelleme yapılmaz, sadece insan gözüyle kontrol için işaretlenir.
+
+## 10. Takma ad çakışması ve ödül teslimatı
+
+Takma adlar hesap değildir, kimseye ait değildir: iki farklı ziyaretçi aynı adı seçebilir, ikisi de aynı `nickname_key`'e düşer ve skor tablosunda tek satır görünür (en yüksek skor kazanır). Bu, kayıt/giriş gerektirmeyen tasarımın bilinçli bir sonucu.
+
+Bunun etkinlik sonu ödül teslimatında karışıklık yaratmaması için her skor gönderiminde bir **ödül kodu** üretilir (`scores.id`'nin base36 hâli, örn. `9IX`):
+
+- Oyuncu skor gönderdiğinde, "Oyun bitti" ekranında bu kod gösterilir. Kod her zaman o an tabloda görünen rekor skora aittir — oyuncu daha düşük bir skorla tekrar oynarsa kod değişmez, yeni bir rekor kırarsa kod da güncellenir.
+- `/admin` panelindeki takma ad listesinde her ismin yanında aynı kod görünür.
+- Ödül verirken: ziyaretçiye ekranındaki kodu sorun, panelde o isme karşılık gelen kodla eşleşiyorsa doğru kişidir. Aynı adı kullanan başka biri farklı bir koda sahip olur, karışıklık netleşir.
+
+Bu, kişisel veri (telefon, e-posta) toplamadan çalışan hafif bir "makbuz" sistemidir; kriptografik güvenlik iddiası taşımaz, sadece stant ortamında yeterli bir doğrulamadır.
+
+## 11. Yapılandırma
 
 | Değişken | Varsayılan | Açıklama |
 |---|---|---|
@@ -141,7 +157,7 @@ Bu önlemler kararlı bir saldırganı tamamen durdurmaz (gerçek oyunu taklit e
 | `ADMIN_TOKEN` | — | Moderasyon ucu için; boşsa uç devre dışıdır |
 | `LOG_LEVEL` | `info` | |
 
-## 11. Stant kurulumu
+## 12. Stant kurulumu
 
 **Seçenek A — İnternette yayın (önerilen):** Dockerfile ile Railway, Fly.io veya bir VPS'e deploy edilir, `/data` için kalıcı volume bağlanır ve `PUBLIC_URL` ayarlanır. Ziyaretçiler kendi mobil verileriyle HTTPS üzerinden bağlanır.
 
@@ -153,9 +169,10 @@ Bu önlemler kararlı bir saldırganı tamamen durdurmaz (gerçek oyunu taklit e
 - [ ] QR kod farklı telefonlarla (iOS + Android) test edildi
 - [ ] `ADMIN_TOKEN` ayarlı, `/admin` panelinden bir kere token girilip test edildi
 - [ ] Veritabanı kalıcı diskte; sunucu yeniden başlatılınca skorlar korunuyor
+- [ ] Ödül vereceğiniz kişiye ekranındaki kodu sorup `/admin` panelindeki kodla eşleştirme adımı ekip içinde biliniyor
 - [ ] Etkinlik öncesi test skorları temizlendi
 
-## 12. Açık konular
+## 13. Açık konular
 
 - Oyunun adı: Artık blok düşmediği için "Blok Yağmuru" yerine etkinliğe uygun bir isim düşünülebilir.
 - Eşya listesinin topluluk ekipleriyle revizesi.

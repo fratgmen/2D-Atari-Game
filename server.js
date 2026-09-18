@@ -65,6 +65,10 @@ function isAdmin(req) {
 
 const fail = (reply, status, code, message) => reply.code(status).send({ code, message });
 
+// Ödül teslimatında oyuncunun ekranında gördüğü kodla, skor satırının id'sinden
+// üretilen kısa bir kod eşleştirilir (bkz. /api/admin/nicknames).
+const codeOf = (id) => id.toString(36).toUpperCase();
+
 // ---------- API ----------
 
 app.get('/healthz', async () => ({ ok: true }));
@@ -122,7 +126,8 @@ app.post(
     });
     if (!result) return fail(reply, 409, 'SESSION_USED', 'Bu oyunun skoru zaten kaydedildi.');
 
-    return { ...result, entries: store.leaderboard(10) };
+    const { claimId, ...rest } = result;
+    return { ...rest, claimCode: codeOf(claimId), entries: store.leaderboard(10) };
   }
 );
 
@@ -152,14 +157,17 @@ app.get(
   }
 );
 
-// Stantta uygunsuz takma adları görüp silmek için (ADMIN_TOKEN ayarlıysa çalışır)
+// Stantta uygunsuz takma adları görüp silmek, ödül teslimatında kod doğrulamak için
+// (ADMIN_TOKEN ayarlıysa çalışır)
 app.get(
   '/api/admin/nicknames',
   { config: { rateLimit: { max: 60, timeWindow: '1 minute' } } },
   async (req, reply) => {
     if (!isAdmin(req)) return fail(reply, 401, 'UNAUTHORIZED', 'Yetkisiz.');
     reply.header('Cache-Control', 'no-store');
-    return { entries: store.leaderboard(500) };
+    return {
+      entries: store.adminNicknames(500).map(({ claimId, ...rest }) => ({ ...rest, code: codeOf(claimId) })),
+    };
   }
 );
 

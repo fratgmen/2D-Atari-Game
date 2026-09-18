@@ -52,13 +52,18 @@ function render() {
     score.className = 'admin-score';
     score.textContent = e.score.toLocaleString('tr-TR');
 
+    const code = document.createElement('span');
+    code.className = 'admin-code';
+    code.textContent = e.code;
+    code.title = 'Ödül teslimatında oyuncudan bu kodu isteyin';
+
     const del = document.createElement('button');
     del.className = 'btn admin-del';
     del.type = 'button';
     del.textContent = 'Sil';
     del.addEventListener('click', () => deleteNickname(e.nickname, li));
 
-    li.append(name, score, del);
+    li.append(name, score, code, del);
     return li;
   }));
 }
