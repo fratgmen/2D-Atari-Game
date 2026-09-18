@@ -11,6 +11,7 @@ npm start            # http://localhost:3000
 
 - Oyun: `/`
 - Stant ekranı (büyük QR + canlı skor tablosu): `/stand`
+- Moderasyon paneli (uygunsuz adları silmek için): `/admin`
 
 ## Ortam değişkenleri
 
@@ -21,7 +22,9 @@ npm start            # http://localhost:3000
 | `DB_PATH`     | `./data/scores.db`    | SQLite dosyası. Sunucuda kalıcı bir diske işaret etmeli. |
 | `ADMIN_TOKEN` | —                     | Uygunsuz takma adları silmek için. |
 
-Uygunsuz bir adı silmek:
+Uygunsuz bir adı silmek: `https://ADRES/admin` adresini açın, `ADMIN_TOKEN` değerini bir kere girin, listeden ilgili adın yanındaki "Sil"e basın. Token tarayıcıda saklanır, standdaki laptopta tekrar girmeniz gerekmez.
+
+Komut satırından silmek isterseniz:
 
 ```bash
 curl -X DELETE -H "x-admin-token: $ADMIN_TOKEN" https://ADRES/api/admin/nicknames/kotu-isim

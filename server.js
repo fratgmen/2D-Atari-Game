@@ -142,12 +142,26 @@ app.get(
   }
 );
 
-// Stantta uygunsuz takma adları silmek için (ADMIN_TOKEN ayarlıysa çalışır)
-app.delete('/api/admin/nicknames/:nickname', async (req, reply) => {
-  if (!isAdmin(req)) return fail(reply, 401, 'UNAUTHORIZED', 'Yetkisiz.');
-  const removed = store.deleteNickname(nicknameKey(req.params.nickname.trim()));
-  return { removed };
-});
+// Stantta uygunsuz takma adları görüp silmek için (ADMIN_TOKEN ayarlıysa çalışır)
+app.get(
+  '/api/admin/nicknames',
+  { config: { rateLimit: { max: 60, timeWindow: '1 minute' } } },
+  async (req, reply) => {
+    if (!isAdmin(req)) return fail(reply, 401, 'UNAUTHORIZED', 'Yetkisiz.');
+    reply.header('Cache-Control', 'no-store');
+    return { entries: store.leaderboard(500) };
+  }
+);
+
+app.delete(
+  '/api/admin/nicknames/:nickname',
+  { config: { rateLimit: { max: 60, timeWindow: '1 minute' } } },
+  async (req, reply) => {
+    if (!isAdmin(req)) return fail(reply, 401, 'UNAUTHORIZED', 'Yetkisiz.');
+    const removed = store.deleteNickname(nicknameKey(req.params.nickname.trim()));
+    return { removed };
+  }
+);
 
 // ---------- QR ve stant ekranı ----------
 
@@ -162,6 +176,7 @@ app.get('/qr.svg', async (req, reply) => {
 });
 
 app.get('/stand', (req, reply) => reply.sendFile('stand.html'));
+app.get('/admin', (req, reply) => reply.sendFile('admin.html'));
 
 // ---------- başlat / kapat ----------
 

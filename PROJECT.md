@@ -78,6 +78,7 @@ blok-yagmuru/
 │   ├── themes.js        Karakterler ve eşyalar (ortak)
 │   ├── api.js           Sunucu istemcisi
 │   ├── stand.html/.js   Stant ekranı: QR + canlı skor tablosu
+│   ├── admin.html/.js   Moderasyon paneli: token ile takma ad silme
 │   ├── style.css
 │   └── birds/*.webp     Karakter görselleri
 ├── Dockerfile
@@ -93,9 +94,11 @@ blok-yagmuru/
 | `POST` | `/api/scores` | `{ sessionId, nickname, character, score }` gönderir → `{ rank, best, isPersonalBest, entries }` |
 | `GET` | `/api/leaderboard?limit=10` | Her takma adın en iyi skoru, büyükten küçüğe (1–50) |
 | `GET` | `/api/config` | QR'daki oyun adresi → `{ playUrl }` |
+| `GET` | `/api/admin/nicknames` | Tüm takma adları ve en iyi skorlarını döner (en fazla 500); `x-admin-token` başlığı gerekir |
 | `DELETE` | `/api/admin/nicknames/:nickname` | Takma adın tüm skorlarını siler; `x-admin-token` başlığı gerekir |
 | `GET` | `/qr.svg` | Oyun adresinin QR kodu |
 | `GET` | `/stand` | Stant ekranı |
+| `GET` | `/admin` | Moderasyon paneli: token girip listeden takma ad silme arayüzü |
 | `GET` | `/healthz` | Sağlık kontrolü |
 
 **Hata kodları:** `BAD_NICKNAME` (400), `NO_SESSION` (404), `SESSION_USED` (409), `IMPLAUSIBLE` (422). Hız sınırı aşılırsa 429 döner.
@@ -148,7 +151,7 @@ Bu önlemler kararlı bir saldırganı tamamen durdurmaz (gerçek oyunu taklit e
 
 - [ ] `/stand` sayfası monitörde tam ekran açık
 - [ ] QR kod farklı telefonlarla (iOS + Android) test edildi
-- [ ] `ADMIN_TOKEN` ayarlı, moderasyon komutu hazır
+- [ ] `ADMIN_TOKEN` ayarlı, `/admin` panelinden bir kere token girilip test edildi
 - [ ] Veritabanı kalıcı diskte; sunucu yeniden başlatılınca skorlar korunuyor
 - [ ] Etkinlik öncesi test skorları temizlendi
 

@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Blok Yağmuru · Moderasyon</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body class="admin-body">
+  <main class="admin">
+    <h1 class="screen-title">Moderasyon</h1>
+
+    <section class="admin-auth" id="auth">
+      <label for="token">Admin token</label>
+      <input type="password" id="token" autocomplete="off" placeholder="ADMIN_TOKEN">
+      <button class="btn" id="save-token">Gir</button>
+      <p class="error" id="auth-error"></p>
+    </section>
+
+    <section class="admin-panel" id="panel" hidden>
+      <div class="admin-toolbar">
+        <input type="text" id="filter" placeholder="Takma adda ara…">
+        <button class="btn btn-ghost" id="refresh">Yenile</button>
+        <button class="btn btn-ghost" id="logout">Çıkış</button>
+      </div>
+      <p class="error" id="list-error"></p>
+      <ul class="admin-list" id="list"></ul>
+    </section>
+  </main>
+  <script type="module" src="/admin.js"></script>
+</body>
+</html>
