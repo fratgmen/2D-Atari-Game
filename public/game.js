@@ -12,7 +12,7 @@ const ctx = canvas.getContext('2d');
 const ui = {
   hud: $('hud'), score: $('score'), level: $('level'), lives: $('lives'), pauseBtn: $('pause'),
   start: $('screen-start'), pause: $('screen-pause'), over: $('screen-over'),
-  form: $('start-form'), nick: $('nickname'), nickError: $('nick-error'),
+  form: $('start-form'), nick: $('nickname'), nickError: $('nick-error'), nickHint: $('nick-hint'),
   boardStart: $('board-start'), boardOver: $('board-over'),
   finalScore: $('final-score'), rank: $('rank'),
   again: $('again'), changeNick: $('change-nick'), resume: $('resume'),
@@ -469,13 +469,32 @@ ui.form.addEventListener('submit', (e) => {
     return;
   }
   ui.nickError.textContent = '';
+  ui.nickHint.textContent = '';
   ui.nick.value = n;
   ui.nick.blur();
   game.nickname = n;
   try { localStorage.setItem('blok-nickname', n); } catch { /* gizli sekme */ }
   startGame();
 });
-ui.nick.addEventListener('input', () => { ui.nickError.textContent = ''; });
+// Yazarken, aynı adın skor tablosunda zaten var olup olmadığını yumuşak bir
+// uyarıyla gösterir (engellemez — ad tekilliği garanti edilmiyor, iki farklı
+// ziyaretçi aynı adı seçebilir, bu sadece bilgilendirme).
+let nickCheckToken = 0;
+ui.nick.addEventListener('input', () => {
+  ui.nickError.textContent = '';
+  ui.nickHint.textContent = '';
+  const n = normalizeNickname(ui.nick.value);
+  if (!n) return;
+  const token = ++nickCheckToken;
+  setTimeout(() => {
+    if (token !== nickCheckToken) return; // kullanıcı yazmaya devam etti, eski sonuç geçersiz
+    api.nicknameTaken(n).then(({ taken }) => {
+      if (token === nickCheckToken) {
+        ui.nickHint.textContent = taken ? 'Bu isim skor tablosunda var. Sensen sorun yok, değilsen farklı bir ad dene.' : '';
+      }
+    }).catch(() => {});
+  }, 400);
+});
 ui.again.addEventListener('click', startGame);
 ui.resume.addEventListener('click', resumeGame);
 ui.pauseBtn.addEventListener('click', pauseGame);
@@ -483,6 +502,7 @@ ui.changeNick.addEventListener('click', () => {
   runId++;
   game.state = 'start';
   game.items = [];
+  ui.nickHint.textContent = '';
   show(ui.start);
   refreshBoard(ui.boardStart, 5);
   ui.nick.focus();

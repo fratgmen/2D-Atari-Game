@@ -26,9 +26,10 @@ export function createStore(file) {
     CREATE INDEX IF NOT EXISTS idx_scores_score ON scores (score DESC);
   `);
 
-  // Basit migration: eski veritabanlarına karakter sütununu ekle
+  // Basit migration: eski veritabanlarına karakter ve ip sütunlarını ekle
   const cols = db.prepare('PRAGMA table_info(scores)').all().map((c) => c.name);
   if (!cols.includes('character')) db.exec('ALTER TABLE scores ADD COLUMN character TEXT');
+  if (!cols.includes('ip')) db.exec('ALTER TABLE scores ADD COLUMN ip TEXT');
 
   const q = {
     createSession: db.prepare('INSERT INTO sessions (id, created_at) VALUES (?, ?)'),
@@ -36,7 +37,7 @@ export function createStore(file) {
     consume: db.prepare('UPDATE sessions SET used = 1 WHERE id = ? AND used = 0'),
     prevBest: db.prepare('SELECT MAX(score) AS best FROM scores WHERE nickname_key = ?'),
     insert: db.prepare(
-      'INSERT INTO scores (nickname, nickname_key, character, score, duration_ms, created_at) VALUES (?, ?, ?, ?, ?, ?)'
+      'INSERT INTO scores (nickname, nickname_key, character, score, duration_ms, created_at, ip) VALUES (?, ?, ?, ?, ?, ?, ?)'
     ),
     rankOf: db.prepare(
       'SELECT COUNT(*) + 1 AS rank FROM (SELECT MAX(score) AS s FROM scores GROUP BY nickname_key) WHERE s > ?'
@@ -47,14 +48,19 @@ export function createStore(file) {
       FROM scores GROUP BY nickname_key
       ORDER BY score DESC, created_at ASC
       LIMIT ?`),
+    nicknameExists: db.prepare('SELECT 1 FROM scores WHERE nickname_key = ? LIMIT 1'),
+    // Ham gönderim listesi (IP dahil): moderasyon panelinde aynı IP'den farklı adları görmek için.
+    recentScores: db.prepare(`
+      SELECT nickname, character, score, ip, created_at
+      FROM scores ORDER BY created_at DESC LIMIT ?`),
     deleteNickname: db.prepare('DELETE FROM scores WHERE nickname_key = ?'),
     pruneSessions: db.prepare('DELETE FROM sessions WHERE created_at < ?'),
   };
 
-  const submit = db.transaction(({ sessionId, nickname, key, character, score, durationMs, now }) => {
+  const submit = db.transaction(({ sessionId, nickname, key, character, score, durationMs, now, ip }) => {
     if (q.consume.run(sessionId).changes !== 1) return null; // aynı oyun iki kez kaydedilemez
     const before = q.prevBest.get(key).best ?? -1;
-    q.insert.run(nickname, key, character, score, durationMs, now);
+    q.insert.run(nickname, key, character, score, durationMs, now, ip ?? null);
     const best = Math.max(before, score);
     return { rank: q.rankOf.get(best).rank, best, isPersonalBest: score > before };
   });
@@ -65,6 +71,8 @@ export function createStore(file) {
     submit,
     leaderboard: (limit) =>
       q.leaderboard.all(limit).map((r, i) => ({ rank: i + 1, nickname: r.nickname, character: r.character, score: r.score })),
+    nicknameExists: (key) => !!q.nicknameExists.get(key),
+    recentScores: (limit) => q.recentScores.all(limit),
     deleteNickname: (key) => q.deleteNickname.run(key).changes,
     pruneSessions: (olderThan) => q.pruneSessions.run(olderThan).changes,
     close: () => db.close(),

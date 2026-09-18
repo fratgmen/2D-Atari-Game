@@ -18,7 +18,9 @@ export const api = {
   submitScore: (payload) => request('/api/scores', { method: 'POST', body: JSON.stringify(payload) }),
   leaderboard: (limit = 10) => request(`/api/leaderboard?limit=${limit}`),
   config: () => request('/api/config'),
+  nicknameTaken: (nickname) => request(`/api/nicknames/${encodeURIComponent(nickname)}/taken`),
   adminList: (token) => request('/api/admin/nicknames', { headers: { 'x-admin-token': token } }),
+  adminScores: (token) => request('/api/admin/scores', { headers: { 'x-admin-token': token } }),
   adminDelete: (nickname, token) =>
     request(`/api/admin/nicknames/${encodeURIComponent(nickname)}`, {
       method: 'DELETE',

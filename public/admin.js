@@ -1,6 +1,8 @@
 import { api } from './api.js';
+import { nicknameKey } from './rules.js';
 
 const STORAGE_KEY = 'blok-yagmuru-admin-token';
+const SUSPICIOUS_THRESHOLD = 4; // aynı IP'den bu kadar farklı ad görülürse uyarı işareti konur
 
 const authSection = document.getElementById('auth');
 const panelSection = document.getElementById('panel');
@@ -8,10 +10,12 @@ const tokenInput = document.getElementById('token');
 const authError = document.getElementById('auth-error');
 const listError = document.getElementById('list-error');
 const list = document.getElementById('list');
+const rawList = document.getElementById('raw-list');
 const filterInput = document.getElementById('filter');
 
 let token = '';
 let entries = [];
+let rawEntries = [];
 
 function showPanel() {
   authSection.hidden = true;
@@ -59,12 +63,71 @@ function render() {
   }));
 }
 
+// Aynı IP'den kaç farklı takma ad gönderilmiş, sayar. Standın paylaşımlı
+// Wi-Fi'ında birçok telefon aynı IP'den çıkabileceği için bu kesin bir kanıt
+// değil, sadece göze çarpması gereken bir örüntü.
+function suspiciousIps(rows) {
+  const namesByIp = new Map();
+  for (const r of rows) {
+    if (!r.ip) continue;
+    let set = namesByIp.get(r.ip);
+    if (!set) namesByIp.set(r.ip, set = new Set());
+    set.add(nicknameKey(r.nickname));
+  }
+  return new Set([...namesByIp].filter(([, names]) => names.size >= SUSPICIOUS_THRESHOLD).map(([ip]) => ip));
+}
+
+function renderRaw() {
+  if (!rawEntries.length) {
+    const li = document.createElement('li');
+    li.className = 'admin-empty';
+    li.textContent = 'Henüz gönderim yok.';
+    rawList.replaceChildren(li);
+    return;
+  }
+
+  const flagged = suspiciousIps(rawEntries);
+
+  rawList.replaceChildren(...rawEntries.map((e) => {
+    const li = document.createElement('li');
+    li.className = 'admin-row admin-row-raw';
+    if (flagged.has(e.ip)) li.classList.add('admin-flag');
+
+    const time = document.createElement('span');
+    time.className = 'admin-time';
+    time.textContent = new Date(e.created_at).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
+
+    const name = document.createElement('span');
+    name.className = 'admin-name';
+    name.textContent = (flagged.has(e.ip) ? '⚠ ' : '') + e.nickname;
+
+    const score = document.createElement('span');
+    score.className = 'admin-score';
+    score.textContent = e.score.toLocaleString('tr-TR');
+
+    const ip = document.createElement('span');
+    ip.className = 'admin-ip';
+    ip.textContent = e.ip ?? '—';
+
+    const del = document.createElement('button');
+    del.className = 'btn admin-del';
+    del.type = 'button';
+    del.textContent = 'Sil';
+    del.addEventListener('click', () => deleteNickname(e.nickname, li));
+
+    li.append(time, name, score, ip, del);
+    return li;
+  }));
+}
+
 async function load() {
   listError.textContent = '';
   try {
-    const res = await api.adminList(token);
-    entries = res.entries;
+    const [listRes, rawRes] = await Promise.all([api.adminList(token), api.adminScores(token)]);
+    entries = listRes.entries;
+    rawEntries = rawRes.entries;
     render();
+    renderRaw();
   } catch (err) {
     if (err.status === 401) { logout('Token geçersiz.'); return; }
     listError.textContent = err.message;
@@ -76,8 +139,11 @@ async function deleteNickname(nickname, row) {
   row.classList.add('busy');
   try {
     await api.adminDelete(nickname, token);
-    entries = entries.filter((e) => e.nickname !== nickname);
+    const key = nicknameKey(nickname);
+    entries = entries.filter((e) => nicknameKey(e.nickname) !== key);
+    rawEntries = rawEntries.filter((e) => nicknameKey(e.nickname) !== key);
     render();
+    renderRaw();
   } catch (err) {
     if (err.status === 401) { logout('Token geçersiz.'); return; }
     listError.textContent = err.message;

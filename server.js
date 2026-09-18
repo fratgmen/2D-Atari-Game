@@ -118,7 +118,7 @@ app.post(
     }
 
     const result = store.submit({
-      sessionId, nickname, key: nicknameKey(nickname), character, score, durationMs: elapsed, now,
+      sessionId, nickname, key: nicknameKey(nickname), character, score, durationMs: elapsed, now, ip: req.ip,
     });
     if (!result) return fail(reply, 409, 'SESSION_USED', 'Bu oyunun skoru zaten kaydedildi.');
 
@@ -142,6 +142,16 @@ app.get(
   }
 );
 
+// Oyuncu isim girerken "bu ad zaten skor tablosunda var" uyarısı göstermek için (herkese açık, kimlik sızdırmaz)
+app.get(
+  '/api/nicknames/:nickname/taken',
+  { config: { rateLimit: { max: 60, timeWindow: '1 minute' } } },
+  async (req) => {
+    const nickname = normalizeNickname(req.params.nickname);
+    return { taken: nickname ? store.nicknameExists(nicknameKey(nickname)) : false };
+  }
+);
+
 // Stantta uygunsuz takma adları görüp silmek için (ADMIN_TOKEN ayarlıysa çalışır)
 app.get(
   '/api/admin/nicknames',
@@ -150,6 +160,18 @@ app.get(
     if (!isAdmin(req)) return fail(reply, 401, 'UNAUTHORIZED', 'Yetkisiz.');
     reply.header('Cache-Control', 'no-store');
     return { entries: store.leaderboard(500) };
+  }
+);
+
+// Ham gönderim geçmişi (IP dahil): aynı IP'den çok sayıda farklı ad gönderimi gibi
+// şüpheli örüntüleri fark etmek için (ADMIN_TOKEN ayarlıysa çalışır)
+app.get(
+  '/api/admin/scores',
+  { config: { rateLimit: { max: 60, timeWindow: '1 minute' } } },
+  async (req, reply) => {
+    if (!isAdmin(req)) return fail(reply, 401, 'UNAUTHORIZED', 'Yetkisiz.');
+    reply.header('Cache-Control', 'no-store');
+    return { entries: store.recentScores(300) };
   }
 );
 
