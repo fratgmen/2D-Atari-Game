@@ -69,6 +69,16 @@ const fail = (reply, status, code, message) => reply.code(status).send({ code, m
 // üretilen kısa bir kod eşleştirilir (bkz. /api/admin/nicknames).
 const codeOf = (id) => id.toString(36).toUpperCase();
 
+// Bir takma adı "sahiplenen" kimlik: istemcinin gönderdiği anonim cihaz kimliği,
+// yoksa (localStorage kapalıysa) IP'ye düşülür. IP tek başına güvenilmez — aynı
+// Wi-Fi'da veya aynı mobil operatörün CGNAT'ında birden çok ziyaretçi aynı IP'yi
+// paylaşabilir; cihaz kimliği her tarayıcıya özeldir.
+function identityOf(req) {
+  const id = req.headers['x-device-id'];
+  if (typeof id === 'string' && /^[a-zA-Z0-9-]{8,64}$/.test(id)) return id;
+  return req.ip;
+}
+
 // ---------- API ----------
 
 app.get('/healthz', async () => ({ ok: true }));
@@ -114,6 +124,13 @@ app.post(
     if (!session) return fail(reply, 404, 'NO_SESSION', 'Oyun oturumu bulunamadı, skor kaydedilmedi.');
     if (session.used) return fail(reply, 409, 'SESSION_USED', 'Bu oyunun skoru zaten kaydedildi.');
 
+    const key = nicknameKey(nickname);
+    const identity = identityOf(req);
+    const owner = store.ownerOfNickname(key);
+    if (owner && owner !== identity) {
+      return fail(reply, 409, 'NICKNAME_TAKEN', 'Bu isim kullanılıyor, lütfen farklı bir isim dene.');
+    }
+
     const now = Date.now();
     const elapsed = now - session.created_at;
     if (score > maxPlausibleScore(elapsed)) {
@@ -122,7 +139,7 @@ app.post(
     }
 
     const result = store.submit({
-      sessionId, nickname, key: nicknameKey(nickname), character, score, durationMs: elapsed, now, ip: req.ip,
+      sessionId, nickname, key, character, score, durationMs: elapsed, now, ip: req.ip, owner: identity,
     });
     if (!result) return fail(reply, 409, 'SESSION_USED', 'Bu oyunun skoru zaten kaydedildi.');
 
@@ -147,13 +164,16 @@ app.get(
   }
 );
 
-// Oyuncu isim girerken "bu ad zaten skor tablosunda var" uyarısı göstermek için (herkese açık, kimlik sızdırmaz)
+// Oyuncu isim girerken "bu ad zaten alınmış" uyarısı göstermek için (herkese açık, kimlik sızdırmaz).
+// mine: bu ismi daha önce alan kişi bu isteği atan kişiyle aynı mı (aynı cihaz).
 app.get(
   '/api/nicknames/:nickname/taken',
   { config: { rateLimit: { max: 60, timeWindow: '1 minute' } } },
   async (req) => {
     const nickname = normalizeNickname(req.params.nickname);
-    return { taken: nickname ? store.nicknameExists(nicknameKey(nickname)) : false };
+    if (!nickname) return { taken: false, mine: false };
+    const owner = store.ownerOfNickname(nicknameKey(nickname));
+    return { taken: !!owner, mine: owner != null && owner === identityOf(req) };
   }
 );
 

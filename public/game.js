@@ -463,7 +463,9 @@ async function endGame() {
   }
 }
 
-ui.form.addEventListener('submit', (e) => {
+const submitBtn = ui.form.querySelector('button[type=submit]');
+
+ui.form.addEventListener('submit', async (e) => {
   e.preventDefault();
   const n = normalizeNickname(ui.nick.value);
   if (!n) {
@@ -474,14 +476,27 @@ ui.form.addEventListener('submit', (e) => {
   ui.nickError.textContent = '';
   ui.nickHint.textContent = '';
   ui.nick.value = n;
+
+  // Takma ad başkasına aitse oyuna hiç başlamadan engelle — sunucu skor
+  // gönderiminde zaten reddedecek, ama bunu maçı bitirdikten sonra öğrenmek kötü olur.
+  submitBtn.disabled = true;
+  try {
+    const { taken, mine } = await api.nicknameTaken(n);
+    if (taken && !mine) {
+      ui.nickError.textContent = 'Bu isim kullanılıyor, lütfen farklı bir isim dene.';
+      ui.nick.focus();
+      return;
+    }
+  } catch { /* kontrol edilemedi: yine de oyna, asıl karar skor gönderiminde verilir */ }
+  finally { submitBtn.disabled = false; }
+
   ui.nick.blur();
   game.nickname = n;
   try { localStorage.setItem('blok-nickname', n); } catch { /* gizli sekme */ }
   startGame();
 });
-// Yazarken, aynı adın skor tablosunda zaten var olup olmadığını yumuşak bir
-// uyarıyla gösterir (engellemez — ad tekilliği garanti edilmiyor, iki farklı
-// ziyaretçi aynı adı seçebilir, bu sadece bilgilendirme).
+// Yazarken, isim başkasına aitse yazmayı bitirmeden uyarır (engellemenin asıl
+// yeri "Oyna" ve skor gönderimi — bu sadece erken bir ön izleme).
 let nickCheckToken = 0;
 ui.nick.addEventListener('input', () => {
   ui.nickError.textContent = '';
@@ -491,9 +506,9 @@ ui.nick.addEventListener('input', () => {
   const token = ++nickCheckToken;
   setTimeout(() => {
     if (token !== nickCheckToken) return; // kullanıcı yazmaya devam etti, eski sonuç geçersiz
-    api.nicknameTaken(n).then(({ taken }) => {
+    api.nicknameTaken(n).then(({ taken, mine }) => {
       if (token === nickCheckToken) {
-        ui.nickHint.textContent = taken ? 'Bu isim skor tablosunda var. Sensen sorun yok, değilsen farklı bir ad dene.' : '';
+        ui.nickHint.textContent = taken && !mine ? 'Bu isim alınmış. Lütfen farklı bir isim dene.' : '';
       }
     }).catch(() => {});
   }, 400);

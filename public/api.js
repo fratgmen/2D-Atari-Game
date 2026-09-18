@@ -1,8 +1,10 @@
+import { deviceId } from './device.js';
+
 async function request(path, options = {}) {
-  const res = await fetch(path, {
-    headers: options.body ? { 'Content-Type': 'application/json' } : undefined,
-    ...options,
-  });
+  const headers = { ...(options.body ? { 'Content-Type': 'application/json' } : null), ...options.headers };
+  const id = deviceId();
+  if (id && !headers['x-device-id']) headers['x-device-id'] = id;
+  const res = await fetch(path, { ...options, headers });
   const body = await res.json().catch(() => ({}));
   if (!res.ok) {
     const err = new Error(body.message || 'Sunucuya ulaşılamadı.');
