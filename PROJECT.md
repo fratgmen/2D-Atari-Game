@@ -163,7 +163,7 @@ Bu, kişisel veri (telefon, e-posta) toplamadan çalışan hafif bir "makbuz" si
 |---|---|---|
 | `PORT` | `3000` | |
 | `HOST` | `0.0.0.0` | |
-| `PUBLIC_URL` | — | QR'a yazılacak adres. Boşsa istek adresi; localhost ise yerel ağ IP'si |
+| `PUBLIC_URL` | — | QR'a yazılacak adres. Boşsa istek adresi; localhost ise yerel ağ IP'si. Şema yazılmazsa `https://` eklenir, boşluk/tırnak/sondaki `/` temizlenir; hiç çözülemezse yok sayılır ve istek adresine düşülür (log'a uyarı düşer) |
 | `DB_PATH` | `./data/scores.db` | Sunucuda kalıcı bir diske işaret etmeli |
 | `ADMIN_TOKEN` | — | Moderasyon ucu için; boşsa uç devre dışıdır |
 | `LOG_LEVEL` | `info` | |
@@ -174,10 +174,12 @@ Bu, kişisel veri (telefon, e-posta) toplamadan çalışan hafif bir "makbuz" si
 
 **Seçenek B — Yerel ağ:** Laptop'ta `npm start` çalıştırılır, telefonlar aynı Wi-Fi'ye bağlanır. QR, laptop'un yerel IP'sini otomatik gösterir. Fuar Wi-Fi'larında cihazlar arası trafik çoğu zaman engellendiği için ayrı bir router gerekebilir.
 
+**QR kod:** `/qr.svg` adresi sunucu tarafında, `PUBLIC_URL`'den (yoksa isteğin adresinden) üretilir; sessiz bölgesi standardın istediği 4 modüldür. `/stand` ekranı adresi dakikada bir kontrol eder ve değiştiyse QR'ı kendiliğinden yeniden çizer — ekran günlerce açık kalsa ve adres etkinlik sırasında düzeltilse bile kimsenin sayfayı tazelemesi gerekmez.
+
 **Etkinlik günü kontrol listesi**
 
 - [ ] `/stand` sayfası monitörde tam ekran açık
-- [ ] QR kod farklı telefonlarla (iOS + Android) test edildi
+- [ ] QR kod farklı telefonlarla (iOS + Android) **okutulup oyunun açıldığı** görüldü
 - [ ] `ADMIN_TOKEN` ayarlı, `/admin` panelinden bir kere token girilip test edildi
 - [ ] Veritabanı kalıcı diskte; sunucu yeniden başlatılınca skorlar korunuyor
 - [ ] Ödül vereceğiniz kişiye ekranındaki kodu sorup `/admin` panelindeki kodla eşleştirme adımı ekip içinde biliniyor

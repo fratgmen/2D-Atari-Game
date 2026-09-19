@@ -14,7 +14,26 @@ import { CHARACTER_IDS } from './public/themes.js';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT ?? 3000);
 const HOST = process.env.HOST ?? '0.0.0.0';
-const PUBLIC_URL = process.env.PUBLIC_URL?.replace(/\/$/, '');
+// PUBLIC_URL elle girilen bir ayardır ve QR'ın tek doğruluk kaynağıdır; bozuk
+// girilirse kod okunur ama hiçbir yere gitmez. Railway panosu alan adını şemasız
+// gösterdiği için "app.up.railway.app" diye yapıştırmak çok kolay — telefon
+// kamerası şemasız metni bağlantı saymaz. Bu yüzden değeri olduğu gibi kullanmak
+// yerine toparlıyoruz; toparlanamıyorsa yok sayıp istek adresine düşüyoruz.
+function normalizePublicUrl(raw) {
+  const trimmed = raw?.trim().replace(/^["']+|["']+$/g, '');
+  if (!trimmed) return '';
+  // Şema yoksa tahmin et: yerel ağ adresleri TLS'siz çalışır, geri kalan her şey https.
+  const local = /^(localhost|127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/i.test(trimmed);
+  const scheme = /^https?:\/\//i.test(trimmed) ? '' : (local ? 'http://' : 'https://');
+  try {
+    const url = new URL(scheme + trimmed);
+    return url.origin + url.pathname.replace(/\/+$/, '');
+  } catch {
+    return '';
+  }
+}
+
+const PUBLIC_URL = normalizePublicUrl(process.env.PUBLIC_URL);
 const ADMIN_TOKEN = process.env.ADMIN_TOKEN ?? '';
 const DB_PATH = process.env.DB_PATH ?? path.join(__dirname, 'data', 'scores.db');
 const SESSION_TTL_MS = 6 * 60 * 60 * 1000;
@@ -218,7 +237,7 @@ app.delete(
 app.get('/qr.svg', async (req, reply) => {
   const svg = await QRCode.toString(playUrl(req), {
     type: 'svg',
-    margin: 1,
+    margin: 4, // standardın istediği sessiz bölge; darken bazı telefonlar okuyamıyor
     errorCorrectionLevel: 'M',
     color: { dark: '#12153a', light: '#f3efe0' },
   });
@@ -244,4 +263,10 @@ process.on('SIGTERM', shutdown);
 
 await app.listen({ port: PORT, host: HOST });
 const lan = lanAddresses().map((ip) => `http://${ip}:${PORT}`);
-app.log.info(`Oyun: ${PUBLIC_URL ?? lan[0] ?? `http://localhost:${PORT}`}  |  Stant ekranı: /stand`);
+const rawPublicUrl = process.env.PUBLIC_URL?.trim();
+if (rawPublicUrl && !PUBLIC_URL) {
+  app.log.warn({ PUBLIC_URL: rawPublicUrl }, 'PUBLIC_URL okunamadı, QR istek adresini kullanacak');
+} else if (rawPublicUrl && rawPublicUrl !== PUBLIC_URL) {
+  app.log.warn({ girilen: rawPublicUrl, kullanılan: PUBLIC_URL }, 'PUBLIC_URL düzeltildi');
+}
+app.log.info(`Oyun: ${PUBLIC_URL || lan[0] || `http://localhost:${PORT}`}  |  Stant ekranı: /stand`);

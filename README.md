@@ -18,7 +18,7 @@ npm start            # http://localhost:3000
 | Değişken      | Varsayılan            | Açıklama |
 |---------------|-----------------------|----------|
 | `PORT`        | 3000                  | |
-| `PUBLIC_URL`  | —                     | QR'a yazılacak adres. Boşsa isteğin adresi, localhost ise yerel ağ IP'si kullanılır. |
+| `PUBLIC_URL`  | —                     | QR'a yazılacak adres (`https://ornek.up.railway.app`). Boşsa isteğin adresi, localhost ise yerel ağ IP'si kullanılır. Şemayı unutursanız `https://` kendiliğinden eklenir. |
 | `DB_PATH`     | `./data/scores.db`    | SQLite dosyası. Sunucuda kalıcı bir diske işaret etmeli. |
 | `ADMIN_TOKEN` | —                     | Uygunsuz takma adları silmek için. |
 

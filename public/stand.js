@@ -2,9 +2,24 @@ import { api } from './api.js';
 
 const list = document.getElementById('board');
 const urlEl = document.getElementById('url');
+const qrEl = document.getElementById('qr');
 let lastJson = '';
+let shownUrl = null;
 
-api.config().then(({ playUrl }) => { urlEl.textContent = playUrl.replace(/^https?:\/\//, ''); }).catch(() => {});
+// Stant ekranı günlerce açık kalır: adres değişirse (PUBLIC_URL düzeltilir, sunucu
+// yeni bir alan adına taşınır) QR kimse sayfayı tazelemeden kendini yeniler.
+async function refreshQr() {
+  try {
+    const { playUrl } = await api.config();
+    if (playUrl === shownUrl) return;
+    shownUrl = playUrl;
+    urlEl.textContent = playUrl.replace(/^https?:\/\//, '');
+    qrEl.src = `/qr.svg?v=${Date.now()}`;
+  } catch { /* bir sonraki turda tekrar dener */ }
+}
+
+refreshQr();
+setInterval(refreshQr, 60000);
 
 async function refresh() {
   try {
