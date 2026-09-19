@@ -16,9 +16,11 @@ Etkinlik standına gelen ziyaretçiler monitördeki QR kodu okutur ve kurulum ge
 
 | Cihaz | Kontrol |
 |---|---|
-| Telefon | Parmağı ekranda sürüklemek |
-| Bilgisayar | Fare hareketi, ← → veya A / D tuşları |
+| Telefon | Ekranın sol/sağ yarısına basılı tutmak (altta bunun için ayrılmış bir bar var) |
+| Bilgisayar | Sol/sağ yarıya basılı tutmak, ← → veya A / D tuşları |
 | Her ikisi | Duraklat butonu, Esc / P tuşu; sekme değişince otomatik duraklama |
+
+Kuş parmağın altına ışınlanmaz: basılı tutarken ivmelenip bir üst hıza (420 px/sn) ulaşır, bırakınca sürtünmeyle durur. Bu sınır, ileri seviyelerde kaçmayı zorlaştıran asıl unsurdur — eşyalar 25. seviyeden sonra kuşun yatay hızından daha hızlı düşer. Alttaki kontrol barı oyun alanının dışındadır, böylece parmak düşen eşyaların üstünü kapatmaz.
 
 ## 3. Oyun kuralları
 
@@ -27,14 +29,19 @@ Tüm değerler `public/rules.js` içindedir. Tarayıcı ve sunucu bu dosyayı or
 | Kural | Değer |
 |---|---|
 | Can | 3 |
-| Seviye atlama | Her 20 saniyede bir, en fazla 12. seviye |
-| Düşme hızı | 150 px/sn, her seviyede %13 artar |
-| Eşya aralığı | 0,95 sn'den başlar, seviye başına 0,055 sn azalır (en az 0,32 sn) |
-| Kaçılacak eşya oranı | %22'den başlar, seviye başına +%1,5 (en fazla %40) |
+| Seviye atlama | Her 15 saniyede bir, en fazla 30. seviye (435. saniye) |
+| Düşme hızı | 150 px/sn, her seviyede %13 artar (30. seviyede 715 px/sn) |
+| Eşya aralığı | 0,95 sn'den başlar, seviye başına 0,055 sn azalır (en az 0,15 sn) |
+| Kaçılacak eşya oranı | %22'den başlar, seviye başına +%1,5 (en fazla %55) |
+| Kuşun yatay hızı | En fazla 420 px/sn, 2000 px/sn² ivmeyle |
 | Toplanacak eşya | 10 × seviye puan |
 | Altın yıldız (%5) | 50 × seviye puan |
 | Kalp (%3, can eksikse) | +1 can |
 | Kaçılacak eşyaya çarpmak | −1 can, −15 puan, 1 sn dokunulmazlık |
+
+**Zorluk eğrisi neden düzleşmemeli:** İlk sürümde eğri 12. seviyede duruyordu; oradan sonra oyun sabit zorlukta kaldığı için iyi bir oyuncu istediği kadar hayatta kalıp puan biriktirebiliyordu (80 bin puan görüldü, teorik olarak 1 milyon mümkündü). Artık hem eşya hızı hem kaçılacak eşya oranı 30. seviyeye kadar artmaya devam eder ve kuşun yatay hızı sabit olduğu için eşyalar bir noktadan sonra kaçılamayacak kadar hızlanır: oyunu artık tavan değil, oyuncunun hayatta kalması bitirir. Eğri hâlâ gevşek gelirse ayar düğmeleri `rules.js` içinde: `levelEverySec`, `fallGrowth`, `chances.badMax`, `minSpawn`.
+
+Düşen eşyanın çarpışma kontrolü süpürülmüş (swept) yapılır: yüksek seviyelerde eşya tek karede yakalama kutusunun boyundan fazla yol alabildiği için yalnızca anlık konuma bakmak onu ıskalardı.
 
 ## 4. Karakterler ve eşyalar
 

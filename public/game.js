@@ -26,8 +26,13 @@ const W = 360;                 // mantıksal genişlik; yükseklik ekran oranın
 let H = 640;
 const ITEM = 36;               // düşen eşya boyutu (mantıksal px)
 const GROUND = 40;
-const BIRD = { w: 84, speed: 480 }; // yükseklik görsel oranından hesaplanır
+const CONTROL_H = 96;          // alttaki kontrol barı: parmak oyun alanını kapatmasın
+// Kuş anında parmağın altına ışınlanmıyor; ivmelenip bir üst hıza ulaşıyor.
+// İleri seviyelerde kaçmayı zorlaştıran asıl şey bu sınır.
+const BIRD = { w: 84, accel: 2000, maxSpeed: 420, friction: 2600 };
 const HEART = ['0110110', '1111111', '1111111', '0111110', '0011100', '0001000'];
+
+const groundY = () => H - CONTROL_H - GROUND; // oyun alanının alt sınırı (zemin şeridinin üstü)
 
 // ---------- durum ----------
 const game = {
@@ -36,10 +41,11 @@ const game = {
   score: 0, lives: RULES.maxLives, time: 0,
   spawnIn: 0.4, invuln: 0, shake: 0,
   nickname: '', character: CHARACTERS[0], sessionPromise: null,
-  player: { x: W / 2, targetX: null, vx: 0, tilt: 0, bounce: 0 },
+  player: { x: W / 2, vx: 0, tilt: 0, bounce: 0 },
   lastLevel: 1,
 };
 const keys = { left: false, right: false };
+const pointers = new Map(); // pointerId -> 'left' | 'right' (aynı anda iki parmak olabilir)
 let view = { s: 1, ox: 0, oy: 0, dpr: 1 };
 let stars = [];
 let runId = 0;
@@ -62,7 +68,7 @@ const birdSize = () => {
 // Kuşun "yakalama" bölgesi: gövdenin üst yarısı
 function catchBox() {
   const { w, h } = birdSize();
-  const top = H - GROUND - h + 6;
+  const top = groundY() - h + 6;
   return { x: game.player.x - w * 0.36, y: top + h * 0.08, w: w * 0.72, h: h * 0.5 };
 }
 
@@ -102,14 +108,32 @@ function toLogicalX(clientX) {
   const r = canvas.getBoundingClientRect();
   return (clientX - r.left - view.ox) / view.s;
 }
+// Yönlendirme ekranın sol/sağ yarısına basılı tutarak yapılır (kuşa dokunarak değil):
+// parmak oyun alanının ortasını kapatmaz, alttaki bar da parmaklar için ayrılmıştır.
+const sideOf = (clientX) => (toLogicalX(clientX) < W / 2 ? 'left' : 'right');
+
+function inputDir() {
+  let left = keys.left;
+  let right = keys.right;
+  for (const side of pointers.values()) {
+    if (side === 'left') left = true;
+    else right = true;
+  }
+  return (right ? 1 : 0) - (left ? 1 : 0); // iki yan birden basılıysa dur
+}
+
 canvas.addEventListener('pointerdown', (e) => {
   if (game.state !== 'playing') return;
-  canvas.setPointerCapture(e.pointerId);
-  game.player.targetX = toLogicalX(e.clientX);
+  pointers.set(e.pointerId, sideOf(e.clientX));
+  canvas.setPointerCapture(e.pointerId); // parmak barın dışına taşsa da bırakma olayını yakala
 });
 canvas.addEventListener('pointermove', (e) => {
-  if (game.state === 'playing') game.player.targetX = toLogicalX(e.clientX);
+  if (pointers.has(e.pointerId)) pointers.set(e.pointerId, sideOf(e.clientX)); // parmak ortadan karşı yana kaydı
 });
+const releasePointer = (e) => pointers.delete(e.pointerId);
+canvas.addEventListener('pointerup', releasePointer);
+canvas.addEventListener('pointercancel', releasePointer);
+canvas.addEventListener('lostpointercapture', releasePointer);
 
 addEventListener('keydown', (e) => {
   if (e.target instanceof HTMLInputElement) return;
@@ -127,7 +151,7 @@ addEventListener('keyup', (e) => {
 document.addEventListener('visibilitychange', () => {
   if (document.hidden && game.state === 'playing') pauseGame();
 });
-addEventListener('blur', () => { keys.left = keys.right = false; });
+addEventListener('blur', () => { keys.left = keys.right = false; pointers.clear(); });
 
 // ---------- oyun mantığı ----------
 function spawn(level, playing) {
@@ -197,12 +221,15 @@ function update(dt) {
   const p = game.player;
 
   if (playing) {
-    const before = p.x;
-    const dir = (keys.right ? 1 : 0) - (keys.left ? 1 : 0);
-    if (dir) { p.targetX = null; p.x += dir * BIRD.speed * dt; }
-    else if (p.targetX != null) p.x += (p.targetX - p.x) * Math.min(1, dt * 20);
-    p.x = clamp(p.x, BIRD.w / 2, W - BIRD.w / 2);
-    p.vx = dt > 0 ? (p.x - before) / dt : 0;
+    const dir = inputDir();
+    if (dir) p.vx = clamp(p.vx + dir * BIRD.accel * dt, -BIRD.maxSpeed, BIRD.maxSpeed);
+    else {
+      const drop = BIRD.friction * dt; // bırakınca hemen durmaz, kayarak yavaşlar
+      p.vx = Math.abs(p.vx) <= drop ? 0 : p.vx - Math.sign(p.vx) * drop;
+    }
+    p.x += p.vx * dt;
+    const half = BIRD.w / 2;
+    if (p.x < half || p.x > W - half) { p.x = clamp(p.x, half, W - half); p.vx = 0; }
     game.invuln = Math.max(0, game.invuln - dt);
     if (level !== game.lastLevel) {
       game.lastLevel = level;
@@ -219,16 +246,20 @@ function update(dt) {
   }
 
   const box = catchBox();
+  const floorY = groundY() + GROUND;
   for (const it of game.items) {
+    const prevY = it.y;
     it.y += it.vy * dt;
     it.rot += it.spin * dt;
+    // Süpürülmüş çarpışma: yüksek seviyelerde eşya bir karede kutunun boyundan
+    // fazla yol alabilir, sadece anlık konuma bakmak onu ıskalardı.
     if (playing && !it.dead &&
-        it.y + it.h >= box.y && it.y <= box.y + box.h &&
+        it.y + it.h >= box.y && prevY <= box.y + box.h &&
         it.x + it.w >= box.x && it.x <= box.x + box.w) {
       collect(it, level);
       if (game.state !== 'playing') break;
     }
-    if (it.y > H + 10) it.dead = true;
+    if (it.y > floorY) it.dead = true;
   }
   game.items = game.items.filter((i) => !i.dead);
 
@@ -303,11 +334,11 @@ function drawBird() {
   const { w, h } = birdSize();
   const p = game.player;
   const squash = p.bounce > 0 ? Math.sin((p.bounce / 0.18) * Math.PI) * 0.08 : 0;
-  const baseY = H - GROUND + 4;
+  const baseY = groundY() + 4;
   // gölge
   ctx.fillStyle = 'rgba(0,0,0,.28)';
   ctx.beginPath();
-  ctx.ellipse(p.x, H - GROUND + 4, w * 0.34, 5, 0, 0, Math.PI * 2);
+  ctx.ellipse(p.x, baseY, w * 0.34, 5, 0, 0, Math.PI * 2);
   ctx.fill();
   ctx.save();
   ctx.translate(p.x, baseY);
@@ -335,7 +366,7 @@ function draw() {
   }
 
   // zemin + Atari şeritleri
-  const gy = H - GROUND;
+  const gy = groundY();
   ctx.fillStyle = '#2a2f6b'; ctx.fillRect(0, gy, W, GROUND);
   ctx.fillStyle = '#ffcc33'; ctx.fillRect(0, gy, W, 4);
   ctx.fillStyle = '#ff8a3d'; ctx.fillRect(0, gy + 7, W, 3);
@@ -361,6 +392,37 @@ function draw() {
     ctx.fillStyle = t.color; ctx.fillText(t.text, t.x, t.y);
   }
   ctx.globalAlpha = 1;
+
+  drawControlBar();
+}
+
+// Parmakların durduğu alt bar: oyun alanının dışında kalır, basılı olan yan yanar.
+function drawControlBar() {
+  const top = H - CONTROL_H;
+  const dir = game.state === 'playing' ? inputDir() : 0;
+
+  ctx.fillStyle = '#12153a';
+  ctx.fillRect(0, top, W, CONTROL_H);
+  ctx.fillStyle = '#2a2f6b';
+  ctx.fillRect(0, top, W, 3);
+  ctx.fillRect(W / 2 - 1, top + 14, 2, CONTROL_H - 28);
+
+  for (const side of [-1, 1]) {
+    const active = dir === side;
+    const cx = side < 0 ? W * 0.25 : W * 0.75;
+    const cy = top + CONTROL_H / 2;
+    if (active) {
+      ctx.fillStyle = 'rgba(255,204,51,.12)';
+      ctx.fillRect(side < 0 ? 0 : W / 2, top + 3, W / 2, CONTROL_H - 3);
+    }
+    ctx.fillStyle = active ? '#ffcc33' : '#6a6fb0';
+    ctx.beginPath();
+    ctx.moveTo(cx + 13 * side, cy);          // uç dışa bakar: solda ◀, sağda ▶
+    ctx.lineTo(cx - 9 * side, cy - 15);
+    ctx.lineTo(cx - 9 * side, cy + 15);
+    ctx.closePath();
+    ctx.fill();
+  }
 }
 
 // ---------- ekranlar ----------
@@ -416,7 +478,8 @@ function startGame() {
     state: 'playing', items: [], texts: [], sparks: [],
     score: 0, lives: RULES.maxLives, time: 0, spawnIn: 0.6, invuln: 0, shake: 0,
   });
-  Object.assign(game.player, { x: W / 2, targetX: null, vx: 0, tilt: 0, bounce: 0 });
+  Object.assign(game.player, { x: W / 2, vx: 0, tilt: 0, bounce: 0 });
+  pointers.clear();
   game.lastLevel = 1;
   Object.assign(hudCache, { score: -1, level: -1, lives: -1 });
   // Oturum sunucuda oyun başında açılır; skor gönderilirken süre buradan doğrulanır.
@@ -424,7 +487,13 @@ function startGame() {
   show(null);
 }
 
-function pauseGame() { game.state = 'paused'; keys.left = keys.right = false; show(ui.pause); ui.resume.focus(); }
+function pauseGame() {
+  game.state = 'paused';
+  keys.left = keys.right = false;
+  pointers.clear();
+  show(ui.pause);
+  ui.resume.focus();
+}
 function resumeGame() { game.state = 'playing'; show(null); }
 
 async function endGame() {
