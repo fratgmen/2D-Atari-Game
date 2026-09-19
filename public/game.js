@@ -388,14 +388,10 @@ function drawBird() {
   ctx.beginPath();
   ctx.ellipse(p.x, baseY, w * 0.34 * (1 - pop * 0.25), 5, 0, 0, Math.PI * 2);
   ctx.fill();
-  // Kanat çırpma: ayrı kanat karesi yok, sprite dikeyde esneyip hafifçe
-  // zıplayarak çırpma hissi verir. Hareket halindeyken biraz hızlanır.
-  const flapRate = 150 - Math.min(60, Math.abs(p.vx) * 0.12);
-  const flap = Math.sin(performance.now() / flapRate);
   ctx.save();
-  ctx.translate(p.x, baseY - popLift + flap * 2);
+  ctx.translate(p.x, baseY - popLift);
   ctx.rotate(p.tilt);
-  ctx.scale((1 + squash - flap * 0.035) * popScale, (1 - squash + flap * 0.05) * popScale);
+  ctx.scale((1 + squash) * popScale, (1 - squash) * popScale);
   ctx.drawImage(img, -w / 2, -h, w, h);
   ctx.restore();
 }
