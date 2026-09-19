@@ -556,6 +556,10 @@ function avatar(id) {
   return img;
 }
 
+// Başlangıç ekranındaki tablo, ekran boyu elverdiği kadar satır gösterir:
+// kısa telefonlarda bir satır fazlası en alttaki yazıyı ekrandan taşırıyor.
+const startBoardRows = () => (innerHeight < 700 ? 3 : 4);
+
 function refreshBoard(el, limit = 10) {
   api.leaderboard(limit)
     .then(({ entries }) => renderBoard(el, entries))
@@ -686,7 +690,7 @@ ui.changeNick.addEventListener('click', () => {
   game.items = [];
   ui.nickHint.textContent = '';
   show(ui.start);
-  refreshBoard(ui.boardStart, 3);
+  refreshBoard(ui.boardStart, startBoardRows());
   ui.nick.focus();
   ui.nick.select();
 });
@@ -749,5 +753,5 @@ selectCharacter(initial);
 try { ui.nick.value = localStorage.getItem('blok-nickname') ?? ''; } catch { /* yok say */ }
 resize();
 new ResizeObserver(resize).observe(stage);
-refreshBoard(ui.boardStart, 3);
+refreshBoard(ui.boardStart, startBoardRows());
 requestAnimationFrame(frame);
