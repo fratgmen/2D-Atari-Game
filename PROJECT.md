@@ -29,17 +29,19 @@ Tüm değerler `public/rules.js` içindedir. Tarayıcı ve sunucu bu dosyayı or
 | Kural | Değer |
 |---|---|
 | Can | 3 |
-| Seviye atlama | Her 15 saniyede bir, en fazla 30. seviye (435. saniye) |
-| Düşme hızı | 150 px/sn, her seviyede %13 artar (30. seviyede 715 px/sn) |
-| Eşya aralığı | 0,95 sn'den başlar, seviye başına 0,055 sn azalır (en az 0,15 sn) |
-| Kaçılacak eşya oranı | %22'den başlar, seviye başına +%1,5 (en fazla %55) |
+| Seviye atlama | Her 12 saniyede bir, tavan 75. seviye (pratikte ulaşılamaz) |
+| Düşme hızı | 175 px/sn, her seviyede %15 artar; sınırsız (20. seviyede 674, 50'de 1461 px/sn) |
+| Eşya aralığı | 0,95 sn'den başlar, her seviyede kalan mesafenin %10'u kapanır, 0,07 sn'ye yaklaşır |
+| Kaçılacak eşya oranı | %22'den başlar, her seviyede kalan mesafenin %7'si kapanır, %70'e yaklaşır |
 | Kuşun yatay hızı | En fazla 420 px/sn, 2000 px/sn² ivmeyle |
 | Toplanacak eşya | 10 × seviye puan |
 | Altın yıldız (%5) | 50 × seviye puan |
 | Kalp (%3, can eksikse) | +1 can |
 | Kaçılacak eşyaya çarpmak | −1 can, −15 puan, 1 sn dokunulmazlık |
 
-**Zorluk eğrisi neden düzleşmemeli:** İlk sürümde eğri 12. seviyede duruyordu; oradan sonra oyun sabit zorlukta kaldığı için iyi bir oyuncu istediği kadar hayatta kalıp puan biriktirebiliyordu (80 bin puan görüldü, teorik olarak 1 milyon mümkündü). Artık hem eşya hızı hem kaçılacak eşya oranı 30. seviyeye kadar artmaya devam eder ve kuşun yatay hızı sabit olduğu için eşyalar bir noktadan sonra kaçılamayacak kadar hızlanır: oyunu artık tavan değil, oyuncunun hayatta kalması bitirir. Eğri hâlâ gevşek gelirse ayar düğmeleri `rules.js` içinde: `levelEverySec`, `fallGrowth`, `chances.badMax`, `minSpawn`.
+**Zorluk eğrisi neden düzleşmemeli:** İlk sürümde eğri 12. seviyede duruyordu; oradan sonra oyun sabit zorlukta kaldığı için iyi bir oyuncu istediği kadar hayatta kalıp puan biriktirebiliyordu (80 bin puan görüldü, teorik olarak 1 milyon mümkündü). Artık üç değişkenin hiçbiri durmaz: düşme hızı doğrusal olarak sınırsız artar, eşya aralığı ve tehlike oranı ise üstel yaklaşımla her seviyede biraz daha sıkışır — hiçbir seviyede "artık zorlaşmıyor" noktası yoktur. Kuşun yatay hızı sabit (420 px/sn) olduğundan ~15. seviyeden sonra eşyalar kuşun yetişemeyeceği kadar hızlanır; oyunu tavan değil, oyuncunun hayatta kalması bitirir.
+
+Kabaca beklenen gidişat: 1:48'de 10. seviye (411 px/sn, saniyede 2,4 eşya), 2:48'de 15. seviye (543 px/sn, 3,7 eşya), 3:48'de 20. seviye (674 px/sn, 5,3 eşya, %58 tehlike). Ayar düğmeleri `rules.js` içinde: `levelEverySec`, `baseFall`, `fallGrowth`, `spawnDecay`, `chances.badDecay`.
 
 Düşen eşyanın çarpışma kontrolü süpürülmüş (swept) yapılır: yüksek seviyelerde eşya tek karede yakalama kutusunun boyundan fazla yol alabildiği için yalnızca anlık konuma bakmak onu ıskalardı.
 

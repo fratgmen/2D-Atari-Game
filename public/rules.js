@@ -3,27 +3,31 @@
 
 export const RULES = Object.freeze({
   maxLives: 3,
-  levelEverySec: 15,     // her 15 saniyede bir seviye atlanır
-  // Zorluk eğrisinin sonu oyunun da sonu olmalı: tavan seviye oyuncunun hayatta
-  // kalamayacağı kadar yüksek tutulur, yoksa iyi bir oyuncu tavana ulaşıp
-  // sınırsız puan biriktirir (12. seviyede duran eski eğride 1M puan mümkündü).
-  maxLevel: 30,
-  baseFall: 150,         // px/sn, 1. seviyede düşme hızı
-  fallGrowth: 0.13,      // seviye başına hız artışı (%13)
+  levelEverySec: 12,     // her 12 saniyede bir seviye atlanır
+  // Tavan pratikte ulaşılamayacak kadar yüksek: oyunun sonunu tavan değil,
+  // oyuncunun hayatta kalması belirlesin. (Eğri 12. seviyede dururken iyi bir
+  // oyuncu sabit zorlukta sınırsız puan biriktirebiliyordu.)
+  maxLevel: 75,
+  baseFall: 175,         // px/sn, 1. seviyede düşme hızı
+  fallGrowth: 0.15,      // seviye başına hız artışı (%15), sınırsız
+  // Eşya aralığı ve tehlike oranı tabana/tavana yapışıp durmasın diye üstel
+  // yaklaşım kullanılır: her seviye kalan mesafenin bir kısmını kapatır, yani
+  // hiçbir seviyede zorluk artışı tamamen durmaz.
   baseSpawn: 0.95,       // sn, 1. seviyede iki eşya arası süre
-  spawnStep: 0.055,
-  minSpawn: 0.15,
+  minSpawn: 0.07,        // sonsuzda yaklaşılan alt sınır
+  spawnDecay: 0.90,
   badPenalty: 15,        // bombaya çarpınca kaybedilen puan
   invulnSec: 1.0,        // çarpıştıktan sonra kısa dokunulmazlık
   points: Object.freeze({ good: 10, star: 50 }), // seviye ile çarpılır
-  chances: Object.freeze({ badBase: 0.22, badPerLevel: 0.015, badMax: 0.55, star: 0.05, heart: 0.03 }),
+  chances: Object.freeze({ badBase: 0.22, badMax: 0.70, badDecay: 0.93, star: 0.05, heart: 0.03 }),
 });
 
 export const levelAt = (t) => Math.min(RULES.maxLevel, 1 + Math.floor(t / RULES.levelEverySec));
 export const fallSpeed = (lvl) => RULES.baseFall * (1 + RULES.fallGrowth * (lvl - 1));
-export const spawnInterval = (lvl) => Math.max(RULES.minSpawn, RULES.baseSpawn - RULES.spawnStep * (lvl - 1));
+export const spawnInterval = (lvl) =>
+  RULES.minSpawn + (RULES.baseSpawn - RULES.minSpawn) * RULES.spawnDecay ** (lvl - 1);
 export const badChance = (lvl) =>
-  Math.min(RULES.chances.badMax, RULES.chances.badBase + RULES.chances.badPerLevel * (lvl - 1));
+  RULES.chances.badMax - (RULES.chances.badMax - RULES.chances.badBase) * RULES.chances.badDecay ** (lvl - 1);
 
 // Verilen sürede ulaşılabilecek skorun cömert üst sınırı.
 // Her doğan eşyanın ortalama iki "iyi blok" değerinde olduğunu varsayar (gerçekte ~0.9).
