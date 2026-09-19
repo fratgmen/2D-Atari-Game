@@ -29,6 +29,7 @@ export const SCENES = [
     starBright: '#ffffff', starDim: '#8f95bb',
     surface: 'crater', decor: 'earth',
     ringHalo: null,
+    suit: true,  // uzaya çıkınca kuş astronot kıyafetine geçer (public/birds/<id>-suit.webp)
   },
   {
     id: 'mars', name: 'Mars', fromLevel: 13,
@@ -40,6 +41,7 @@ export const SCENES = [
     // Kaçılacak eşyaların kırmızı halkası pas rengi zeminde kaybolur; beyaz bir
     // dış hat halkayı görünür tutar (renk körü oyuncular için kritik).
     ringHalo: '#ffffff',
+    suit: true,
   },
 ];
 

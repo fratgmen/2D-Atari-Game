@@ -63,6 +63,8 @@ Temalar üst seviyelere yayılmadı; oynanan aralığa sıkıştırıldı. İlk 
 - **Ay ve Mars'ta yerçekimi değişmez.** Düşük yerçekimi temaya uygun olurdu ama eşyaları yavaşlatıp zorluk eğrisini tam da en kritik yerde tersine çevirirdi. Tema tamamen görseldir; fizik `rules.js`'ten gelir.
 - **Mars'ta kaçılacak eşyaların halkası beyaz dış hat alır** (`ringHalo`). Kırmızı kesikli halka pas rengi zeminde kayboluyordu; bu halka renk körü oyuncular için tek ayırt edici işaret olduğundan görünürlüğü zorunlu.
 
+**Astronot kıyafeti:** Uzaya çıkınca (ay ve mars, `suit: true`) kuş, karakterine özel astronot görseline geçer (`public/birds/<id>-suit.webp`; normal görsel `<id>.webp` gündüz/gece için). Değişim, arka plan geçişinin ortasında (t=0,5) olur ki kostüm değişimi zeminin değişimiyle aynı ana denk gelsin. Donuk bir kesme olmaması için kısa (0,5 sn) bir "puf": kuş hafifçe büyüyüp sönerken bir parıltı bulutu çıkar. Astronot görseli henüz yüklenmediyse normal görsele düşülür, kuş asla boş kalmaz.
+
 ## 4. Karakterler ve eşyalar
 
 Karakter görselleri `public/birds/<id>.webp` içindedir: arka planı temizlenmiş, 256 px yüksekliğinde şeffaf WebP. Eşyalar `public/themes.js` içinde tanımlıdır. Revize için yalnızca bu dosyayı düzenlemek yeterlidir.
@@ -108,7 +110,7 @@ blok-yagmuru/
 │   ├── stand.html/.js   Stant ekranı: QR + canlı skor tablosu
 │   ├── admin.html/.js   Moderasyon paneli: token ile takma ad silme
 │   ├── style.css
-│   └── birds/*.webp     Karakter görselleri
+│   └── birds/*.webp     Karakter görselleri (<id>.webp normal, <id>-suit.webp astronot)
 ├── Dockerfile
 ├── README.md            Kurulum ve çalıştırma
 └── PROJECT.md           Bu doküman

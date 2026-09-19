@@ -44,6 +44,7 @@ const game = {
   nickname: '', character: CHARACTERS[0], sessionPromise: null,
   player: { x: W / 2, vx: 0, tilt: 0, bounce: 0 },
   lastLevel: 1,
+  suitShown: false, suitAnim: 0,   // astronot kıyafeti gösteriliyor mu / kıyafet değişim animasyonu
 };
 const keys = { left: false, right: false };
 const pointers = new Map(); // pointerId -> 'left' | 'right' (aynı anda iki parmak olabilir)
@@ -52,6 +53,7 @@ let stars = [];
 let surface = [];                                  // zemindeki krater/kaya lekeleri
 const scene = { from: SCENES[0], to: SCENES[0], t: 1 }; // t: geçiş ilerlemesi
 const SCENE_FADE = 1.6;                            // sn
+const SUIT_POP = 0.5;                              // kıyafet değişimi "puf" süresi (sn)
 let runId = 0;
 const hudCache = { score: -1, level: -1, lives: -1 };
 
@@ -59,13 +61,22 @@ const rand = (a, b) => a + Math.random() * (b - a);
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
 // ---------- görseller ----------
-const birdImages = new Map(CHARACTERS.map((c) => {
-  const img = new Image();
-  img.src = `/birds/${c.id}.webp`;
-  return [c.id, img];
-}));
+// Her karakterin iki hali: normal (gündüz/gece) ve astronot (ay/mars).
+const loadImg = (src) => { const i = new Image(); i.src = src; return i; };
+const birdImages = new Map(CHARACTERS.map((c) => [c.id, loadImg(`/birds/${c.id}.webp`)]));
+const suitImages = new Map(CHARACTERS.map((c) => [c.id, loadImg(`/birds/${c.id}-suit.webp`)]));
+
+// O an gösterilecek sprite: sahne kıyafet istiyorsa astronot, yoksa normal.
+// Astronot görseli henüz yüklenmediyse normale düşer (asla boş kalmaz).
+function currentBirdImg() {
+  if (game.suitShown) {
+    const s = suitImages.get(game.character.id);
+    if (s?.complete && s.naturalWidth) return s;
+  }
+  return birdImages.get(game.character.id);
+}
 const birdSize = () => {
-  const img = birdImages.get(game.character.id);
+  const img = currentBirdImg();
   const ratio = img?.naturalWidth ? img.naturalHeight / img.naturalWidth : 0.92;
   return { w: BIRD.w, h: BIRD.w * ratio };
 };
@@ -251,6 +262,18 @@ function update(dt) {
   const want = sceneAt(level);
   if (want !== scene.to) { scene.from = scene.to; scene.to = want; scene.t = 0; }
   if (scene.t < 1) scene.t = Math.min(1, scene.t + dt / SCENE_FADE);
+
+  // Kıyafet, arka plan geçişinin ortasında (t=0.5) değişir — böylece kostüm
+  // değişimi zeminin değişimiyle aynı ana denk gelir. Değişimde bir "puf" ve
+  // parıltı: donuk bir kesme yerine küçük bir dönüşüm hissi verir.
+  const wantSuit = !!((scene.t < 0.5 ? scene.from : scene.to).suit);
+  if (wantSuit !== game.suitShown) {
+    game.suitShown = wantSuit;
+    game.suitAnim = SUIT_POP;
+    const { h } = birdSize();
+    burst(p.x, groundY() + 4 - h * 0.5, wantSuit ? '#dfe6ff' : '#ffcc33', 16);
+  }
+  if (game.suitAnim > 0) game.suitAnim = Math.max(0, game.suitAnim - dt);
   p.tilt += (clamp(p.vx / 1400, -0.28, 0.28) - p.tilt) * Math.min(1, dt * 12);
   p.bounce = Math.max(0, p.bounce - dt);
 
@@ -349,21 +372,26 @@ function drawItem(it, ringHalo) {
 }
 
 function drawBird() {
-  const img = birdImages.get(game.character.id);
+  const img = currentBirdImg();
   if (!img?.complete || !img.naturalWidth) return;
   const { w, h } = birdSize();
   const p = game.player;
   const squash = p.bounce > 0 ? Math.sin((p.bounce / 0.18) * Math.PI) * 0.08 : 0;
   const baseY = groundY() + 4;
-  // gölge
-  ctx.fillStyle = 'rgba(0,0,0,.28)';
+  // Kıyafet değişimi "puf"u: kısa bir büyüyüp sönme + hafif yukarı sıçrama.
+  let pop = 0;
+  if (game.suitAnim > 0) pop = Math.sin((1 - game.suitAnim / SUIT_POP) * Math.PI);
+  const popScale = 1 + pop * 0.28;
+  const popLift = pop * 10;
+  // gölge (puf sırasında kuş yükselince gölge küçülür)
+  ctx.fillStyle = `rgba(0,0,0,${0.28 - pop * 0.14})`;
   ctx.beginPath();
-  ctx.ellipse(p.x, baseY, w * 0.34, 5, 0, 0, Math.PI * 2);
+  ctx.ellipse(p.x, baseY, w * 0.34 * (1 - pop * 0.25), 5, 0, 0, Math.PI * 2);
   ctx.fill();
   ctx.save();
-  ctx.translate(p.x, baseY);
+  ctx.translate(p.x, baseY - popLift);
   ctx.rotate(p.tilt);
-  ctx.scale(1 + squash, 1 - squash);
+  ctx.scale((1 + squash) * popScale, (1 - squash) * popScale);
   ctx.drawImage(img, -w / 2, -h, w, h);
   ctx.restore();
 }
@@ -576,10 +604,13 @@ function startGame() {
   Object.assign(game, {
     state: 'playing', items: [], texts: [], sparks: [],
     score: 0, lives: RULES.maxLives, time: 0, spawnIn: 0.6, invuln: 0, shake: 0,
+    suitShown: false, suitAnim: 0,
   });
   Object.assign(game.player, { x: W / 2, vx: 0, tilt: 0, bounce: 0 });
   pointers.clear();
   game.lastLevel = 1;
+  scene.from = scene.to = SCENES[0];  // her oyun gündüz sahnesinde, kıyafetsiz başlar
+  scene.t = 1;
   Object.assign(hudCache, { score: -1, level: -1, lives: -1 });
   // Oturum sunucuda oyun başında açılır; skor gönderilirken süre buradan doğrulanır.
   game.sessionPromise = api.startSession().then((r) => r.sessionId).catch(() => null);
