@@ -325,9 +325,11 @@ canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block
 .credit {
   margin: 0;
   font-size: clamp(10px, 1.6cqh, 14px);
-  line-height: 1;
-  color: var(--muted);
-  opacity: .65;
+  line-height: 1.15;
+  color: #fff;
   letter-spacing: .05em;
 }
+/* İsim, "powered by"e göre büyür: em kullanıldığı için stant ekranındaki
+   daha büyük kredi satırında da aynı oranı korur. */
+.credit-name { font-size: 1.45em; }
 .credit-stand { font-size: clamp(13px, 1vw, 18px); }
