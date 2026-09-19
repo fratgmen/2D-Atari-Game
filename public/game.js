@@ -686,7 +686,7 @@ ui.changeNick.addEventListener('click', () => {
   game.items = [];
   ui.nickHint.textContent = '';
   show(ui.start);
-  refreshBoard(ui.boardStart, 5);
+  refreshBoard(ui.boardStart, 3);
   ui.nick.focus();
   ui.nick.select();
 });
@@ -749,5 +749,5 @@ selectCharacter(initial);
 try { ui.nick.value = localStorage.getItem('blok-nickname') ?? ''; } catch { /* yok say */ }
 resize();
 new ResizeObserver(resize).observe(stage);
-refreshBoard(ui.boardStart, 5);
+refreshBoard(ui.boardStart, 3);
 requestAnimationFrame(frame);
