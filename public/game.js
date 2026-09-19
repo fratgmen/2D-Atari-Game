@@ -3,6 +3,7 @@ import {
 } from './rules.js';
 import { api } from './api.js';
 import { CHARACTERS, getCharacter, pickWeighted } from './themes.js';
+import { SCENES, sceneAt, mixHex } from './scenes.js';
 
 // ---------- DOM ----------
 const $ = (id) => document.getElementById(id);
@@ -48,6 +49,9 @@ const keys = { left: false, right: false };
 const pointers = new Map(); // pointerId -> 'left' | 'right' (aynı anda iki parmak olabilir)
 let view = { s: 1, ox: 0, oy: 0, dpr: 1 };
 let stars = [];
+let surface = [];                                  // zemindeki krater/kaya lekeleri
+const scene = { from: SCENES[0], to: SCENES[0], t: 1 }; // t: geçiş ilerlemesi
+const SCENE_FADE = 1.6;                            // sn
 let runId = 0;
 const hudCache = { score: -1, level: -1, lives: -1 };
 
@@ -99,7 +103,11 @@ function resize() {
   view = { s, ox: (r.width - W * s) / 2, oy: (r.height - H * s) / 2, dpr: Math.min(devicePixelRatio || 1, 3) };
   canvas.width = Math.round(r.width * view.dpr);
   canvas.height = Math.round(r.height * view.dpr);
-  stars = Array.from({ length: 46 }, () => ({ x: Math.random() * W, y: Math.random() * (H - GROUND), b: Math.random() }));
+  stars = Array.from({ length: 46 }, () => ({ x: Math.random() * W, y: Math.random() * groundY(), b: Math.random() }));
+  surface = Array.from({ length: 11 }, () => ({
+    x: Math.random() * W, o: Math.random() * (GROUND - 14) + 5,
+    rx: rand(7, 20), ry: rand(2.5, 5),
+  }));
   game.player.x = clamp(game.player.x, BIRD.w / 2, W - BIRD.w / 2);
 }
 
@@ -232,10 +240,17 @@ function update(dt) {
     if (p.x < half || p.x > W - half) { p.x = clamp(p.x, half, W - half); p.vx = 0; }
     game.invuln = Math.max(0, game.invuln - dt);
     if (level !== game.lastLevel) {
+      const entered = sceneAt(level) !== sceneAt(game.lastLevel);
       game.lastLevel = level;
-      floatText(`Seviye ${level}`, W / 2, H * 0.42, '#ffcc33', true);
+      // Atmosfer değiştiğinde seviye numarası yerine yeni ortamın adı yazılır:
+      // oyuncunun ne kadar ilerlediğini en görünür anlatan şey bu.
+      floatText(entered ? sceneAt(level).name : `Seviye ${level}`, W / 2, H * 0.42, '#ffcc33', true);
     }
   }
+
+  const want = sceneAt(level);
+  if (want !== scene.to) { scene.from = scene.to; scene.to = want; scene.t = 0; }
+  if (scene.t < 1) scene.t = Math.min(1, scene.t + dt / SCENE_FADE);
   p.tilt += (clamp(p.vx / 1400, -0.28, 0.28) - p.tilt) * Math.min(1, dt * 12);
   p.bounce = Math.max(0, p.bounce - dt);
 
@@ -287,7 +302,7 @@ function syncHud(level) {
 }
 
 // ---------- çizim ----------
-function drawItem(it) {
+function drawItem(it, ringHalo) {
   const cx = it.x + it.w / 2, cy = it.y + it.h / 2;
   ctx.save();
   ctx.translate(cx, cy);
@@ -300,6 +315,11 @@ function drawItem(it) {
       ctx.fillStyle = 'rgba(255,59,48,.22)';
       ctx.fill();
       ctx.setLineDash([5, 4]);
+      if (ringHalo) {           // Mars'ın pas rengi zemininde kırmızı halka kaybolur
+        ctx.lineWidth = 5.5;
+        ctx.strokeStyle = ringHalo;
+        ctx.stroke();
+      }
       ctx.lineWidth = 2.5;
       ctx.strokeStyle = '#ff3b30';
       ctx.stroke();
@@ -348,8 +368,63 @@ function drawBird() {
   ctx.restore();
 }
 
+// İki tema arasındaki geçişte tüm renkler karıştırılır; yıldızlar, zemin lekeleri
+// ve gökyüzü cismi ise saydamlıkla açılıp kapanır.
+function blendedScene() {
+  const { from, to, t } = scene;
+  const mix = (key) => mixHex(from[key], to[key], t);
+  return {
+    from, to, t,
+    skyTop: mix('skyTop'), skyBottom: mix('skyBottom'),
+    ground: mix('ground'), groundEdge: mix('groundEdge'),
+    stripes: [0, 1, 2].map((i) => mixHex(from.stripes[i], to.stripes[i], t)),
+    starBright: mix('starBright'), starDim: mix('starDim'),
+    starAlpha: (from.starBright ? 1 - t : 0) + (to.starBright ? t : 0),
+    surfaceAlpha: (from.surface ? 1 - t : 0) + (to.surface ? t : 0),
+    ringHalo: t < 0.5 ? from.ringHalo : to.ringHalo,
+  };
+}
+
+function drawDecor(sc) {
+  if (sc.from !== sc.to && sc.from.decor) drawSkyBody(sc.from.decor, 1 - sc.t);
+  if (sc.to.decor) drawSkyBody(sc.to.decor, sc.from === sc.to ? 1 : sc.t);
+}
+
+function drawSkyBody(kind, alpha) {
+  if (alpha <= 0.02) return;
+  const cx = W * 0.76, cy = H * 0.17;
+  const disc = (r, color) => { ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fillStyle = color; ctx.fill(); };
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  if (kind === 'sun') {
+    disc(30, 'rgba(255,204,51,.22)');
+    disc(21, '#ffcc33');
+    disc(15, '#ffe9a8');
+  } else if (kind === 'moon') {
+    disc(20, '#e8e6d8');
+    ctx.fillStyle = '#c3c0b0';
+    for (const [dx, dy, r] of [[-6, -5, 4], [5, 3, 5], [-2, 8, 3]]) {
+      ctx.beginPath(); ctx.arc(cx + dx, cy + dy, r, 0, Math.PI * 2); ctx.fill();
+    }
+  } else if (kind === 'earth') {
+    disc(17, '#2f6fb3');
+    ctx.fillStyle = '#7cbf4a';
+    for (const [dx, dy, rx, ry] of [[-5, -4, 6, 4], [6, 5, 5, 3]]) {
+      ctx.beginPath(); ctx.ellipse(cx + dx, cy + dy, rx, ry, 0, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.globalAlpha = alpha * 0.5;
+    ctx.fillStyle = '#f3efe0';
+    ctx.beginPath(); ctx.ellipse(cx + 1, cy - 8, 11, 3, 0.3, 0, Math.PI * 2); ctx.fill();
+  } else if (kind === 'marsSun') {
+    disc(18, 'rgba(255,217,176,.18)');   // toz bulutunun içinden solgun görünür
+    disc(11, '#ffd9b0');
+  }
+  ctx.restore();
+}
+
 function draw() {
   const { s, ox, oy, dpr } = view;
+  const sc = blendedScene();
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.fillStyle = '#12153a';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -358,21 +433,41 @@ function draw() {
   if (game.shake > 0) { const m = game.shake * 16; sx = rand(-m, m); sy = rand(-m, m); }
   ctx.setTransform(dpr * s, 0, 0, dpr * s, dpr * (ox + sx), dpr * (oy + sy));
 
-  ctx.fillStyle = '#1b1f4b';
+  const gy = groundY();
+  const sky = ctx.createLinearGradient(0, 0, 0, gy);
+  sky.addColorStop(0, sc.skyTop);
+  sky.addColorStop(1, sc.skyBottom);
+  ctx.fillStyle = sky;
   ctx.fillRect(0, 0, W, H);
-  for (const st of stars) {
-    ctx.fillStyle = st.b > 0.75 ? '#7a7fc4' : '#343a82';
-    ctx.fillRect(st.x | 0, st.y | 0, 2, 2);
+
+  if (sc.starAlpha > 0) {
+    ctx.globalAlpha = sc.starAlpha;
+    for (const st of stars) {
+      ctx.fillStyle = st.b > 0.75 ? sc.starBright : sc.starDim;
+      ctx.fillRect(st.x | 0, st.y | 0, 2, 2);
+    }
+    ctx.globalAlpha = 1;
   }
 
-  // zemin + Atari şeritleri
-  const gy = groundY();
-  ctx.fillStyle = '#2a2f6b'; ctx.fillRect(0, gy, W, GROUND);
-  ctx.fillStyle = '#ffcc33'; ctx.fillRect(0, gy, W, 4);
-  ctx.fillStyle = '#ff8a3d'; ctx.fillRect(0, gy + 7, W, 3);
-  ctx.fillStyle = '#ff5d8f'; ctx.fillRect(0, gy + 13, W, 2);
+  drawDecor(sc);
 
-  for (const it of game.items) drawItem(it);
+  // zemin + Atari şeritleri
+  ctx.fillStyle = sc.ground; ctx.fillRect(0, gy, W, GROUND);
+  if (sc.surfaceAlpha > 0) {
+    ctx.globalAlpha = sc.surfaceAlpha;
+    ctx.fillStyle = sc.groundEdge;
+    for (const f of surface) {
+      ctx.beginPath();
+      ctx.ellipse(f.x, gy + f.o, f.rx, f.ry, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+  }
+  ctx.fillStyle = sc.stripes[0]; ctx.fillRect(0, gy, W, 4);
+  ctx.fillStyle = sc.stripes[1]; ctx.fillRect(0, gy + 7, W, 3);
+  ctx.fillStyle = sc.stripes[2]; ctx.fillRect(0, gy + 13, W, 2);
+
+  for (const it of game.items) drawItem(it, sc.ringHalo);
 
   if (game.state !== 'start') {
     const blink = game.invuln > 0 && Math.floor(game.invuln * 10) % 2 === 0;

@@ -45,6 +45,24 @@ Kabaca beklenen gidişat: 1:48'de 10. seviye (411 px/sn, saniyede 2,4 eşya), 2:
 
 Düşen eşyanın çarpışma kontrolü süpürülmüş (swept) yapılır: yüksek seviyelerde eşya tek karede yakalama kutusunun boyundan fazla yol alabildiği için yalnızca anlık konuma bakmak onu ıskalardı.
 
+## 3b. Arka plan temaları
+
+Oyun ilerledikçe ortam değişir (`public/scenes.js`). Aralıklar keyfî değil, oyuncuların gerçekte nereye kadar gidebildiğine göre seçildi — 300 simülasyonda oyuncuların %100'ü 3., %89'u 6., %51'i 9., %26'sı 11., %8'i 13. seviyeye ulaşıyor:
+
+| Tema | Seviye | Zaman | Ulaşan |
+|---|---|---|---|
+| Gündüz | 1–4 | 0:00–0:48 | %100 |
+| Gece | 5–8 | 0:48–1:36 | ~%89 |
+| Ay yüzeyi | 9–12 | 1:36–2:24 | ~%51 |
+| Mars | 13+ | 2:24 sonrası | ~%8 |
+
+Temalar üst seviyelere yayılmadı; oynanan aralığa sıkıştırıldı. İlk geçiş 48. saniyede olmalı çünkü ortalama ziyaretçi ~1 dakika oynuyor — herkesin en az bir değişim görmesi, tekrar oynama isteğini yaratan şey. Ay %50'lik bir eşik, Mars ise övünme seviyesidir. Geçişler 1,6 saniyede yumuşakça karışır (ani değişim hata gibi algılanıyor) ve seviye atlama yazısı o an numara yerine ortamın adını gösterir.
+
+İki tasarım kararı:
+
+- **Ay ve Mars'ta yerçekimi değişmez.** Düşük yerçekimi temaya uygun olurdu ama eşyaları yavaşlatıp zorluk eğrisini tam da en kritik yerde tersine çevirirdi. Tema tamamen görseldir; fizik `rules.js`'ten gelir.
+- **Mars'ta kaçılacak eşyaların halkası beyaz dış hat alır** (`ringHalo`). Kırmızı kesikli halka pas rengi zeminde kayboluyordu; bu halka renk körü oyuncular için tek ayırt edici işaret olduğundan görünürlüğü zorunlu.
+
 ## 4. Karakterler ve eşyalar
 
 Karakter görselleri `public/birds/<id>.webp` içindedir: arka planı temizlenmiş, 256 px yüksekliğinde şeffaf WebP. Eşyalar `public/themes.js` içinde tanımlıdır. Revize için yalnızca bu dosyayı düzenlemek yeterlidir.
@@ -85,6 +103,7 @@ blok-yagmuru/
 │   ├── game.js          Oyun motoru: çizim, girdi, çarpışma, ekranlar
 │   ├── rules.js         Zorluk eğrisi, puanlama, takma ad kuralı (ortak)
 │   ├── themes.js        Karakterler ve eşyalar (ortak)
+│   ├── scenes.js        Arka plan temaları ve seviye aralıkları
 │   ├── api.js           Sunucu istemcisi
 │   ├── stand.html/.js   Stant ekranı: QR + canlı skor tablosu
 │   ├── admin.html/.js   Moderasyon paneli: token ile takma ad silme
