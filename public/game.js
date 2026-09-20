@@ -647,6 +647,9 @@ async function endGame() {
   try {
     const r = await api.submitScore({
       sessionId, nickname: game.nickname, character: game.character.id, score: game.score,
+      // Duraklatılan süreyi dışarıda bırakan gerçek oynama süresi. Sunucu bunu
+      // duvar saatiyle birlikte değerlendirir (bkz. /api/scores).
+      playMs: Math.round(game.time * 1000),
     });
     if (token !== runId) return;
     ui.rank.textContent = r.isPersonalBest

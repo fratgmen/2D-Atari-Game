@@ -121,13 +121,14 @@ app.post(
     schema: {
       body: {
         type: 'object',
-        required: ['sessionId', 'nickname', 'character', 'score'],
+        required: ['sessionId', 'nickname', 'character', 'score', 'playMs'],
         additionalProperties: false,
         properties: {
           sessionId: { type: 'string', pattern: '^[0-9a-f-]{36}$' },
           nickname: { type: 'string', maxLength: 64 },
           character: { type: 'string', enum: CHARACTER_IDS },
           score: { type: 'integer', minimum: 0, maximum: 10000000 },
+          playMs: { type: 'integer', minimum: 0 },
         },
       },
     },
@@ -151,9 +152,16 @@ app.post(
     }
 
     const now = Date.now();
-    const elapsed = now - session.created_at;
+    // Duvar saati duraklatılan süreyi de içerir; oyunun kendi sayacı duraklatınca
+    // durduğu için seviye (ve dolayısıyla puan) yalnızca fiilî oynama süresiyle
+    // büyür. Oyunu duraklatıp bekleyerek sınırı şişirmeyi engellemek için ikisinin
+    // küçüğü alınır. İstemcinin gönderdiği değer sınırı yalnızca daraltabilir:
+    // büyük göndermek duvar saati tavanına takılır, küçük göndermek kendi aleyhinedir.
+    // Alan zorunludur: atlanarak eski gevşek davranışa dönülememeli.
+    const wallMs = now - session.created_at;
+    const elapsed = Math.min(wallMs, req.body.playMs);
     if (score > maxPlausibleScore(elapsed)) {
-      req.log.warn({ score, elapsed, nickname }, 'implausible score rejected');
+      req.log.warn({ score, elapsed, wallMs, nickname }, 'implausible score rejected');
       return fail(reply, 422, 'IMPLAUSIBLE', 'Bu skor oyun süresiyle uyuşmuyor, kaydedilmedi.');
     }
 
