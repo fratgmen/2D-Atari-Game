@@ -1,5 +1,5 @@
 import { api } from './api.js';
-import { nicknameKey } from './rules.js';
+import { nicknameKey, levelAt } from './rules.js';
 
 const STORAGE_KEY = 'blok-yagmuru-admin-token';
 const SUSPICIOUS_THRESHOLD = 4; // aynı IP'den bu kadar farklı ad görülürse uyarı işareti konur
@@ -16,6 +16,18 @@ const filterInput = document.getElementById('filter');
 let token = '';
 let entries = [];
 let rawEntries = [];
+
+// Skorun inandırıcılığını gözle kontrol etmek için: puanlar seviyeyle çarpıldığından
+// yüksek bir skor ancak uzun bir oyunla mümkün. Kısa süreli yüksek skor şüphelidir.
+function durationCell(ms) {
+  const el = document.createElement('span');
+  el.className = 'admin-dur';
+  if (!Number.isFinite(ms) || ms <= 0) { el.textContent = '—'; return el; }
+  const s = Math.round(ms / 1000);
+  el.textContent = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')} · S${levelAt(s)}`;
+  el.title = 'Oyun süresi ve ulaşılan seviye';
+  return el;
+}
 
 function showPanel() {
   authSection.hidden = true;
@@ -63,7 +75,7 @@ function render() {
     del.textContent = 'Sil';
     del.addEventListener('click', () => deleteNickname(e.nickname, li));
 
-    li.append(name, score, code, del);
+    li.append(name, score, durationCell(e.duration_ms), code, del);
     return li;
   }));
 }
@@ -120,7 +132,7 @@ function renderRaw() {
     del.textContent = 'Sil';
     del.addEventListener('click', () => deleteNickname(e.nickname, li));
 
-    li.append(time, name, score, ip, del);
+    li.append(time, name, score, durationCell(e.duration_ms), ip, del);
     return li;
   }));
 }

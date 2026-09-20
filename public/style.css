@@ -303,11 +303,12 @@ canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block
 .admin-body { display: block; height: auto; min-height: 100cqh; overflow-y: auto; }
 .admin { width: min(700px, 100%); margin: 0 auto; padding: 4vh 5vw calc(env(safe-area-inset-bottom) + 4vh); display: grid; gap: 20px; }
 .admin-auth { display: grid; gap: 10px; max-width: 320px; }
+.admin-auth[hidden] { display: none; } /* display:grid aksi hâlde hidden özniteliğini ezer */
 .admin-auth input { padding: 10px 12px; font-size: 22px; background: var(--deep); border: 3px solid var(--ink); }
 .admin-toolbar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
 .admin-toolbar input { flex: 1; min-width: 160px; padding: 8px 10px; background: var(--deep); border: 3px solid var(--ink); font-size: 20px; }
 .admin-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
-.admin-row { display: grid; grid-template-columns: 1fr auto auto auto; align-items: center; gap: 10px; padding: 8px 10px; background: var(--panel); }
+.admin-row { display: grid; grid-template-columns: 1fr auto auto auto auto; align-items: center; gap: 10px; padding: 8px 10px; background: var(--panel); }
 .admin-row.busy { opacity: .5; pointer-events: none; }
 .admin-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .admin-score { font-variant-numeric: tabular-nums; color: var(--muted); }
@@ -316,8 +317,9 @@ canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block
 .admin-empty { padding: 10px; color: var(--muted); text-align: center; }
 .admin-subtitle { margin-top: 10px; }
 .admin-hint { font-family: var(--crt); font-size: 16px; text-transform: none; letter-spacing: 0; }
-.admin-row-raw { grid-template-columns: auto 1fr auto auto auto; }
-.admin-time, .admin-ip { color: var(--muted); font-size: 16px; font-variant-numeric: tabular-nums; }
+.admin-row-raw { grid-template-columns: auto 1fr auto auto auto auto; }
+.admin-time, .admin-ip, .admin-dur { color: var(--muted); font-size: 16px; font-variant-numeric: tabular-nums; }
+.admin-dur { white-space: nowrap; }
 .admin-flag { box-shadow: inset 3px 0 0 var(--danger); }
 
 /* ---------- imza ---------- */

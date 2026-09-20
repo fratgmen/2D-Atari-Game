@@ -65,8 +65,8 @@ export function createStore(file) {
     // Admin listesi: her takma ad için rekor satırın id'sini de döner (moderasyon
     // panelinde kodu göstermek için), leaderboard ile birebir aynı sıralama/eşitlik kuralı.
     adminBest: db.prepare(`
-      SELECT id, nickname, character, score, created_at FROM (
-        SELECT id, nickname, character, score, created_at,
+      SELECT id, nickname, character, score, duration_ms, created_at FROM (
+        SELECT id, nickname, character, score, duration_ms, created_at,
                ROW_NUMBER() OVER (PARTITION BY nickname_key ORDER BY score DESC, created_at ASC) AS rn
         FROM scores
       )
@@ -75,7 +75,7 @@ export function createStore(file) {
       LIMIT ?`),
     // Ham gönderim listesi (IP dahil): moderasyon panelinde aynı IP'den farklı adları görmek için.
     recentScores: db.prepare(`
-      SELECT nickname, character, score, ip, created_at
+      SELECT nickname, character, score, duration_ms, ip, created_at
       FROM scores ORDER BY created_at DESC LIMIT ?`),
     deleteNickname: db.prepare('DELETE FROM scores WHERE nickname_key = ?'),
     pruneSessions: db.prepare('DELETE FROM sessions WHERE created_at < ?'),
@@ -100,7 +100,8 @@ export function createStore(file) {
       q.leaderboard.all(limit).map((r, i) => ({ rank: i + 1, nickname: r.nickname, character: r.character, score: r.score })),
     adminNicknames: (limit) =>
       q.adminBest.all(limit).map((r, i) => ({
-        rank: i + 1, nickname: r.nickname, character: r.character, score: r.score, claimId: r.id,
+        rank: i + 1, nickname: r.nickname, character: r.character, score: r.score,
+        duration_ms: r.duration_ms, claimId: r.id,
       })),
     ownerOfNickname: (key) => q.ownerOfNickname.get(key)?.owner ?? null,
     nicknameOfOwner: (owner) => q.nicknameOfOwner.get(owner)?.nickname ?? null,
